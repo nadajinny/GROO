@@ -30,26 +30,28 @@
             마감일이 등록된 태스크가 없습니다.
           </div>
           <div class="calendar-list" v-else>
-            <div v-for="(tasks, day) in datedGroups" :key="day" class="calendar-day">
-              <div class="calendar-day__header">
-                <div class="calendar-day__date">{{ day }}</div>
-                <span class="badge badge-success">{{ tasks.length }}건</span>
-              </div>
-              <ul class="list-reset">
-                <li v-for="task in tasks" :key="task.task.id" class="calendar-task">
-                  <div>
-                    <div class="calendar-task__title">{{ task.task.title }}</div>
-                    <div class="calendar-task__meta">
-                      {{ task.group.name }} · {{ task.project.name }}
+            <TransitionGroup tag="div" name="list-fade">
+              <div v-for="(tasks, day) in datedGroups" :key="day" class="calendar-day">
+                <div class="calendar-day__header">
+                  <div class="calendar-day__date">{{ day }}</div>
+                  <span class="badge badge-success">{{ tasks.length }}건</span>
+                </div>
+                <ul class="list-reset">
+                  <li v-for="task in tasks" :key="task.task.id" class="calendar-task">
+                    <div>
+                      <div class="calendar-task__title">{{ task.task.title }}</div>
+                      <div class="calendar-task__meta">
+                        {{ task.group.name }} · {{ task.project.name }}
+                      </div>
                     </div>
-                  </div>
-                  <div class="calendar-task__tags">
-                    <span class="chip">{{ task.task.status }}</span>
-                    <span class="chip">{{ task.task.priority }}</span>
-                  </div>
-                </li>
-              </ul>
-            </div>
+                    <div class="calendar-task__tags">
+                      <span class="chip">{{ task.task.status }}</span>
+                      <span class="chip">{{ task.task.priority }}</span>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </TransitionGroup>
             <div v-if="undatedTasks.length" class="calendar-day">
               <div class="calendar-day__header">
                 <div class="calendar-day__date">마감일 미지정</div>
@@ -84,12 +86,8 @@
         <div v-else-if="!assignedTasks.length" class="empty-state">
           현재 할당된 태스크가 없습니다.
         </div>
-        <div v-else class="stack">
-          <article
-            v-for="task in assignedTasks"
-            :key="task.task.id"
-            class="task-card"
-          >
+        <TransitionGroup v-else tag="div" class="stack" name="list-fade">
+          <article v-for="task in assignedTasks" :key="task.task.id" class="task-card">
             <header>
               <div>
                 <h4>{{ task.task.title }}</h4>
@@ -129,7 +127,7 @@
               </ul>
             </div>
           </article>
-        </div>
+        </TransitionGroup>
       </section>
 
       <section class="app-card">
@@ -143,7 +141,7 @@
         <div v-else-if="!notifications.length" class="empty-state">
           최근 업데이트된 알림이 없습니다.
         </div>
-        <ul v-else class="list-reset notifications">
+        <TransitionGroup v-else tag="ul" class="list-reset notifications" name="list-fade">
           <li v-for="notice in notifications" :key="notice.id">
             <button
               type="button"
@@ -162,7 +160,7 @@
               </div>
             </button>
           </li>
-        </ul>
+        </TransitionGroup>
       </section>
     </div>
   </div>
@@ -551,5 +549,16 @@ watch(
   font-size: 13px;
   color: var(--app-text-muted);
   white-space: nowrap;
+}
+
+.list-fade-enter-active,
+.list-fade-leave-active {
+  transition: all 0.25s ease;
+}
+
+.list-fade-enter-from,
+.list-fade-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
 }
 </style>

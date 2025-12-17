@@ -53,7 +53,12 @@
             아직 프로젝트가 없습니다. 새 프로젝트를 생성해보세요.
           </div>
         </aside>
-        <div class="projects-content" v-if="selectedProject">
+        <Transition name="panel-fade" mode="out-in">
+        <div
+          v-if="selectedProject"
+          :key="selectedProject.id"
+          class="projects-content"
+        >
           <header class="projects-content__header">
             <div>
               <h3>{{ selectedProject.name }}</h3>
@@ -199,6 +204,7 @@
             </table>
           </section>
         </div>
+        </Transition>
       </div>
     </section>
 
@@ -721,5 +727,16 @@ function openTaskDetail(taskId: string) {
 
 .upload-btn {
   cursor: pointer;
+}
+
+.panel-fade-enter-active,
+.panel-fade-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.panel-fade-enter-from,
+.panel-fade-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
 }
 </style>

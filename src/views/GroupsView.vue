@@ -37,12 +37,8 @@
       <div v-else-if="!groupStore.groups.length" class="empty-state">
         아직 참여 중인 그룹이 없습니다. 새 그룹을 만들어보세요.
       </div>
-      <div v-else class="stack">
-        <article
-          v-for="group in groupStore.groups"
-          :key="group.id"
-          class="card-with-border group-card"
-        >
+      <TransitionGroup v-else tag="div" name="list-fade" class="stack">
+        <article v-for="group in groupStore.groups" :key="group.id" class="card-with-border group-card">
           <header>
             <div>
               <h4>{{ group.name }}</h4>
@@ -70,7 +66,7 @@
             </button>
           </div>
         </article>
-      </div>
+      </TransitionGroup>
     </section>
 
     <div v-if="createDialogOpen" class="dialog-backdrop">
@@ -234,5 +230,16 @@ function formatDateTime(date: Date) {
   background: rgba(255, 107, 107, 0.15);
   border: 1px solid rgba(255, 107, 107, 0.4);
   margin-bottom: 16px;
+}
+
+.list-fade-enter-active,
+.list-fade-leave-active {
+  transition: all 0.25s ease;
+}
+
+.list-fade-enter-from,
+.list-fade-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
 }
 </style>

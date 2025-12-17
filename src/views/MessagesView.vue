@@ -57,7 +57,8 @@
       </aside>
 
       <section class="messages-panel app-card">
-        <template v-if="isGroupSelected">
+        <Transition name="panel-fade" mode="out-in">
+        <div v-if="isGroupSelected" key="group">
           <h3>그룹 메시지</h3>
           <p class="text-muted">
             {{
@@ -76,8 +77,8 @@
             v-model="groupMessage"
             @send="sendGroupMessage"
           />
-        </template>
-        <template v-else>
+        </div>
+        <div v-else key="direct">
           <h3>개인 메시지</h3>
           <p class="text-muted">
             {{
@@ -96,7 +97,8 @@
             v-model="directMessage"
             @send="sendDirectMessage"
           />
-        </template>
+        </div>
+        </Transition>
       </section>
     </div>
 
@@ -271,5 +273,16 @@ async function submitAddFriend() {
   padding: 12px;
   background: rgba(255, 107, 107, 0.15);
   border: 1px solid rgba(255, 107, 107, 0.4);
+}
+
+.panel-fade-enter-active,
+.panel-fade-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.panel-fade-enter-from,
+.panel-fade-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
 }
 </style>
