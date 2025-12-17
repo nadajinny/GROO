@@ -36,6 +36,7 @@ export async function findByEmail(email: string): Promise<AccountRecord | null> 
   const snapshot = await getDocs(q)
   if (snapshot.empty) return null
   const docSnap = snapshot.docs[0]
+  if (!docSnap) return null
   const data = docSnap.data()
   return {
     uid: docSnap.id,

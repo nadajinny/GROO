@@ -146,7 +146,7 @@ const selectedFriend = computed(() =>
 )
 
 watch(
-  () => [groupStore.currentGroupId, isGroupSelected.value],
+  () => [groupStore.currentGroupId, isGroupSelected.value] as const,
   ([groupId, isGroup]) => {
     if (isGroup && groupId) {
       socialStore.ensureGroupMessages(groupId)
