@@ -47,65 +47,76 @@
         {{ authStore.errorMessage }}
       </div>
 
-      <form v-if="activeTab === 'login'" class="login__form" @submit.prevent="handleLogin">
-        <label>이메일</label>
-        <input
-          v-model="loginForm.email"
-          class="input"
-          type="email"
-          autocomplete="email"
-          placeholder="you@example.com"
-        />
-        <label>비밀번호</label>
-        <input
-          v-model="loginForm.password"
-          class="input"
-          type="password"
-          autocomplete="current-password"
-          placeholder="••••••••"
-        />
-        <button class="btn btn-primary" type="submit" :disabled="authStore.isLoading">
-          {{ authStore.isLoading ? '로그인 중...' : '로그인' }}
-        </button>
-      </form>
-
-      <form v-else class="login__form" @submit.prevent="handleSignup">
-        <label>아이디</label>
-        <input
-          v-model="signupForm.userId"
-          class="input"
-          type="text"
-          autocomplete="nickname"
-          placeholder="예: jinsunlab"
-        />
-        <label>이메일</label>
-        <input
-          v-model="signupForm.email"
-          class="input"
-          type="email"
-          autocomplete="email"
-          placeholder="you@example.com"
-        />
-        <label>비밀번호</label>
-        <input
-          v-model="signupForm.password"
-          class="input"
-          type="password"
-          autocomplete="new-password"
-          placeholder="최소 6자 이상"
-        />
-        <label>비밀번호 확인</label>
-        <input
-          v-model="signupForm.confirmPassword"
-          class="input"
-          type="password"
-          autocomplete="new-password"
-          placeholder="비밀번호를 다시 입력하세요"
-        />
-        <button class="btn btn-primary" type="submit" :disabled="authStore.isLoading">
-          {{ authStore.isLoading ? '회원가입 중...' : '회원가입' }}
-        </button>
-      </form>
+      <Transition name="auth-switch" mode="out-in">
+        <form
+          v-if="activeTab === 'login'"
+          key="login"
+          class="login__form"
+          @submit.prevent="handleLogin"
+        >
+          <label>이메일</label>
+          <input
+            v-model="loginForm.email"
+            class="input"
+            type="email"
+            autocomplete="email"
+            placeholder="you@example.com"
+          />
+          <label>비밀번호</label>
+          <input
+            v-model="loginForm.password"
+            class="input"
+            type="password"
+            autocomplete="current-password"
+            placeholder="••••••••"
+          />
+          <button class="btn btn-primary" type="submit" :disabled="authStore.isLoading">
+            {{ authStore.isLoading ? '로그인 중...' : '로그인' }}
+          </button>
+        </form>
+        <form
+          v-else
+          key="signup"
+          class="login__form"
+          @submit.prevent="handleSignup"
+        >
+          <label>아이디</label>
+          <input
+            v-model="signupForm.userId"
+            class="input"
+            type="text"
+            autocomplete="nickname"
+            placeholder="예: jinsunlab"
+          />
+          <label>이메일</label>
+          <input
+            v-model="signupForm.email"
+            class="input"
+            type="email"
+            autocomplete="email"
+            placeholder="you@example.com"
+          />
+          <label>비밀번호</label>
+          <input
+            v-model="signupForm.password"
+            class="input"
+            type="password"
+            autocomplete="new-password"
+            placeholder="최소 6자 이상"
+          />
+          <label>비밀번호 확인</label>
+          <input
+            v-model="signupForm.confirmPassword"
+            class="input"
+            type="password"
+            autocomplete="new-password"
+            placeholder="비밀번호를 다시 입력하세요"
+          />
+          <button class="btn btn-primary" type="submit" :disabled="authStore.isLoading">
+            {{ authStore.isLoading ? '회원가입 중...' : '회원가입' }}
+          </button>
+        </form>
+      </Transition>
 
       <p class="login__note">
         계정을 등록하면 Lab Tool 데이터와 동기화되어 그룹·프로젝트·메시지를 그대로 사용할 수 있습니다.
@@ -350,5 +361,16 @@ async function handleSignup() {
 .pill.small {
   padding: 3px 10px;
   font-size: 11px;
+}
+
+.auth-switch-enter-active,
+.auth-switch-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.auth-switch-enter-from,
+.auth-switch-leave-to {
+  opacity: 0;
+  transform: translateY(12px);
 }
 </style>
