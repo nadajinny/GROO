@@ -1,11 +1,11 @@
 <template>
-  <div class="history">
+  <div ref="historyContainer" class="history">
     <div v-if="!messages.length" class="empty-state">
       아직 메시지가 없습니다. 첫 메시지를 보내보세요!
     </div>
     <div v-else class="history-list">
       <div
-        v-for="message in reversedMessages"
+        v-for="message in messages"
         :key="message.id"
         :class="['message', { mine: message.senderId === currentUserId }]"
       >
@@ -20,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import type { ChatMessage } from '../../types'
 
 const props = defineProps<{
@@ -28,7 +28,22 @@ const props = defineProps<{
   currentUserId: string | null
 }>()
 
-const reversedMessages = computed(() => [...props.messages].reverse())
+const historyContainer = ref<HTMLDivElement | null>(null)
+
+watch(
+  () => props.messages,
+  () => scrollToBottom(),
+  { immediate: true, deep: true }
+)
+
+function scrollToBottom() {
+  nextTick(() => {
+    const el = historyContainer.value
+    if (el) {
+      el.scrollTop = el.scrollHeight
+    }
+  })
+}
 
 function formatTime(date: Date) {
   const pad = (value: number) => `${value}`.padStart(2, '0')

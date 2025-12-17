@@ -208,57 +208,48 @@
       </div>
     </section>
 
-    <div v-if="createProjectDialog" class="dialog-backdrop">
-      <div class="dialog">
-        <h3>새 프로젝트</h3>
-        <input v-model="projectForm.name" class="input" type="text" placeholder="프로젝트 이름" />
-        <textarea
-          v-model="projectForm.description"
-          class="textarea"
-          rows="3"
-          placeholder="설명"
-        />
-        <div class="dialog-actions">
-          <button class="btn btn-outline" @click="closeCreateProjectDialog">취소</button>
-          <button class="btn btn-primary" @click="submitCreateProject">생성</button>
-        </div>
-      </div>
-    </div>
+    <AppDialog v-model="createProjectDialog" title="새 프로젝트">
+      <input v-model="projectForm.name" class="input" type="text" placeholder="프로젝트 이름" />
+      <textarea
+        v-model="projectForm.description"
+        class="textarea"
+        rows="3"
+        placeholder="설명"
+      />
+      <template #footer>
+        <button class="btn btn-outline" @click="closeCreateProjectDialog">취소</button>
+        <button class="btn btn-primary" @click="submitCreateProject">생성</button>
+      </template>
+    </AppDialog>
 
-    <div v-if="createTaskDialog" class="dialog-backdrop">
-      <div class="dialog">
-        <h3>새 태스크</h3>
-        <input v-model="taskForm.title" class="input" type="text" placeholder="태스크 제목" />
-        <textarea
-          v-model="taskForm.description"
-          class="textarea"
-          rows="3"
-          placeholder="설명 (선택)"
-        />
-        <input
-          v-model="taskForm.assignee"
-          class="input"
-          type="text"
-          placeholder="담당자 UID 또는 핸들"
-        />
-        <div class="dialog-actions">
-          <button class="btn btn-outline" @click="closeCreateTaskDialog">취소</button>
-          <button class="btn btn-primary" @click="submitCreateTask">생성</button>
-        </div>
-      </div>
-    </div>
+    <AppDialog v-model="createTaskDialog" title="새 태스크">
+      <input v-model="taskForm.title" class="input" type="text" placeholder="태스크 제목" />
+      <textarea
+        v-model="taskForm.description"
+        class="textarea"
+        rows="3"
+        placeholder="설명 (선택)"
+      />
+      <input
+        v-model="taskForm.assignee"
+        class="input"
+        type="text"
+        placeholder="담당자 UID 또는 핸들"
+      />
+      <template #footer>
+        <button class="btn btn-outline" @click="closeCreateTaskDialog">취소</button>
+        <button class="btn btn-primary" @click="submitCreateTask">생성</button>
+      </template>
+    </AppDialog>
 
-    <div v-if="createNoteDialog" class="dialog-backdrop">
-      <div class="dialog">
-        <h3>프로젝트 노트</h3>
-        <input v-model="noteForm.title" class="input" placeholder="노트 제목" />
-        <textarea v-model="noteForm.content" class="textarea" rows="4" placeholder="내용" />
-        <div class="dialog-actions">
-          <button class="btn btn-outline" @click="closeCreateNoteDialog">취소</button>
-          <button class="btn btn-primary" @click="submitCreateNote">저장</button>
-        </div>
-      </div>
-    </div>
+    <AppDialog v-model="createNoteDialog" title="프로젝트 노트">
+      <input v-model="noteForm.title" class="input" placeholder="노트 제목" />
+      <textarea v-model="noteForm.content" class="textarea" rows="4" placeholder="내용" />
+      <template #footer>
+        <button class="btn btn-outline" @click="closeCreateNoteDialog">취소</button>
+        <button class="btn btn-primary" @click="submitCreateNote">저장</button>
+      </template>
+    </AppDialog>
   </div>
 </template>
 
@@ -267,6 +258,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import CurrentWorkspaceBanner from '../components/groups/CurrentWorkspaceBanner.vue'
+import AppDialog from '../components/common/AppDialog.vue'
 import { useAuthStore } from '../stores/auth'
 import { useGroupStore } from '../stores/group'
 import * as projectService from '../services/projectService'

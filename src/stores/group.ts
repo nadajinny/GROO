@@ -6,12 +6,13 @@ import {
   doc,
   getDoc,
   getDocs,
-  orderBy,
+  onSnapshot,
   query,
   serverTimestamp,
   setDoc,
   where
 } from 'firebase/firestore'
+import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore'
 
 import { firestore } from '../firebase'
 import type { Group, GroupMember, Role } from '../types'
@@ -36,6 +37,7 @@ export const useGroupStore = defineStore('groups', () => {
   const memberErrors = ref<Set<string>>(new Set())
   const authStoreRef = ref<ReturnType<typeof useAuthStore> | null>(null)
   let stopAuthWatch: WatchStopHandle | null = null
+  let membershipsUnsubscribe: (() => void) | null = null
 
   function init(authStore: ReturnType<typeof useAuthStore>) {
     if (stopAuthWatch) return
@@ -43,20 +45,55 @@ export const useGroupStore = defineStore('groups', () => {
     stopAuthWatch = watch(
       () => authStore.user?.uid ?? null,
       (uid) => {
+        cleanupMembershipListener()
         if (!uid) {
-          groups.value = []
-          membershipRoles.value = {}
-          currentGroupId.value = null
-          allowNullSelection.value = true
-          groupMembers.value = {}
-          memberErrors.value = new Set()
-          membersFetching.value = new Set()
-          errorMessage.value = null
+          resetState()
         } else {
-          fetchMyGroups(uid)
+          startMembershipListener(uid)
         }
       },
       { immediate: true }
+    )
+  }
+
+  function resetState() {
+    groups.value = []
+    membershipRoles.value = {}
+    currentGroupId.value = null
+    allowNullSelection.value = true
+    isFetching.value = false
+    groupMembers.value = {}
+    memberErrors.value = new Set()
+    membersFetching.value = new Set()
+    errorMessage.value = null
+  }
+
+  function cleanupMembershipListener() {
+    if (membershipsUnsubscribe) {
+      membershipsUnsubscribe()
+      membershipsUnsubscribe = null
+    }
+  }
+
+  function startMembershipListener(uid: string) {
+    const membershipQuery = query(groupMembersCollection, where('userId', '==', uid))
+    isFetching.value = true
+    membershipsUnsubscribe = onSnapshot(
+      membershipQuery,
+      (snapshot) => {
+        applyMembershipDocs(snapshot.docs)
+          .catch((error) => {
+            console.error('Failed to process membership snapshot', error)
+          })
+          .finally(() => {
+            isFetching.value = false
+          })
+      },
+      (error) => {
+        console.error('Failed to watch memberships', error)
+        errorMessage.value = '그룹 정보를 실시간으로 불러오지 못했습니다.'
+        isFetching.value = false
+      }
     )
   }
 
@@ -90,47 +127,7 @@ export const useGroupStore = defineStore('groups', () => {
       const membershipsSnap = await getDocs(
         query(groupMembersCollection, where('userId', '==', uid))
       )
-      const roles: Record<string, Role> = {}
-      const groupIds: string[] = []
-      membershipsSnap.forEach((doc) => {
-        const data = doc.data()
-        const groupId = data.groupId as string
-        if (groupId) {
-          groupIds.push(groupId)
-          roles[groupId] = roleFromString(data.role)
-        }
-      })
-      membershipRoles.value = roles
-
-      if (!groupIds.length) {
-        groups.value = []
-        currentGroupId.value = null
-        allowNullSelection.value = true
-        return
-      }
-
-      const groupDocs = await Promise.all(
-        groupIds.map((id) => getDoc(doc(groupsCollection, id)))
-      )
-
-      const mapped = groupDocs
-        .filter((snapshot) => snapshot.exists())
-        .map((snapshot) => {
-          const data = snapshot.data()
-          return {
-            id: snapshot.id,
-            name: data?.name ?? '이름 없음',
-            createdBy: data?.createdBy ?? '',
-            createdAt: data?.createdAt ? data.createdAt.toDate() : null
-          } as Group
-        })
-        .sort((a, b) => {
-          const aTime = a.createdAt?.getTime() ?? 0
-          const bTime = b.createdAt?.getTime() ?? 0
-          return bTime - aTime
-        })
-      groups.value = mapped
-      reconcileCurrentGroupSelection()
+      await applyMembershipDocs(membershipsSnap.docs, { resetSelectionWhenEmpty: true })
     } catch (error) {
       console.error('Failed to fetch groups', error)
       errorMessage.value = '그룹을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.'
@@ -271,9 +268,10 @@ export const useGroupStore = defineStore('groups', () => {
     memberErrors.value.delete(groupId)
     try {
       const membersSnap = await getDocs(
-        query(groupMembersCollection, where('groupId', '==', groupId), orderBy('role'))
+        query(groupMembersCollection, where('groupId', '==', groupId))
       )
       const members: GroupMember[] = []
+      const lookupPromises: Promise<void>[] = []
       for (const docSnap of membersSnap.docs) {
         const data = docSnap.data()
         const member: GroupMember = {
@@ -283,11 +281,17 @@ export const useGroupStore = defineStore('groups', () => {
           handle: data.handle ?? null
         }
         if (!member.handle && member.userId) {
-          const profile = await userDirectory.fetchByUid(member.userId)
-          member.handle = profile?.handle ?? null
+          const task = userDirectory.fetchByUid(member.userId).then((profile) => {
+            member.handle = profile?.handle ?? null
+          })
+          lookupPromises.push(task)
         }
         members.push(member)
       }
+      if (lookupPromises.length) {
+        await Promise.allSettled(lookupPromises)
+      }
+      members.sort((a, b) => (a.role === b.role ? 0 : a.role === 'owner' ? -1 : 1))
       groupMembers.value = { ...groupMembers.value, [groupId]: members }
     } catch (error) {
       console.error('Failed to fetch members', error)
@@ -311,6 +315,55 @@ export const useGroupStore = defineStore('groups', () => {
 
   function isAddingMember(groupId: string): boolean {
     return memberOperations.value.has(groupId)
+  }
+
+  async function applyMembershipDocs(
+    docs: QueryDocumentSnapshot<DocumentData>[],
+    options?: { resetSelectionWhenEmpty?: boolean }
+  ) {
+    const roles: Record<string, Role> = {}
+    const groupIds: string[] = []
+    docs.forEach((docSnap) => {
+      const data = docSnap.data()
+      const groupId = data.groupId as string | undefined
+      if (!groupId) return
+      groupIds.push(groupId)
+      roles[groupId] = roleFromString(data.role)
+    })
+    membershipRoles.value = roles
+
+    const uniqueGroupIds = Array.from(new Set(groupIds))
+
+    if (!uniqueGroupIds.length) {
+      groups.value = []
+      if (options?.resetSelectionWhenEmpty ?? true) {
+        currentGroupId.value = null
+        allowNullSelection.value = true
+      }
+      return
+    }
+
+    const groupDocs = await Promise.all(
+      uniqueGroupIds.map((id) => getDoc(doc(groupsCollection, id)))
+    )
+    const mapped = groupDocs
+      .filter((snapshot) => snapshot.exists())
+      .map((snapshot) => {
+        const data = snapshot.data()
+        return {
+          id: snapshot.id,
+          name: data?.name ?? '이름 없음',
+          createdBy: data?.createdBy ?? '',
+          createdAt: data?.createdAt ? data.createdAt.toDate() : null
+        } as Group
+      })
+      .sort((a, b) => {
+        const aTime = a.createdAt?.getTime() ?? 0
+        const bTime = b.createdAt?.getTime() ?? 0
+        return bTime - aTime
+      })
+    groups.value = mapped
+    reconcileCurrentGroupSelection()
   }
 
   return {

@@ -1,9 +1,20 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, watch, type WatchStopHandle } from 'vue'
+import {
+  addDoc,
+  collection,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc
+} from 'firebase/firestore'
 
 import type { AppUser, ChatMessage, Friend, UserProfile } from '../types'
-
-let messageCounter = 0
+import { firestore } from '../firebase'
+import type { useAuthStore } from './auth'
+import * as userDirectory from '../services/userDirectory'
 
 export const useSocialStore = defineStore('social', () => {
   const friends = ref<Friend[]>([])
@@ -11,82 +22,100 @@ export const useSocialStore = defineStore('social', () => {
   const groupMessages = ref<Record<string, ChatMessage[]>>({})
   const errorMessage = ref<string | null>(null)
   const initialized = ref(false)
+  const currentUserId = ref<string | null>(null)
 
-  function init() {
-    if (initialized.value) return
-    seedMockData()
+  let stopAuthWatch: WatchStopHandle | null = null
+  let friendsUnsubscribe: (() => void) | null = null
+  const directMessageUnsubs = new Map<string, () => void>()
+  const groupMessageUnsubs = new Map<string, () => void>()
+
+  function init(authStore: ReturnType<typeof useAuthStore>) {
+    if (stopAuthWatch) return
+    stopAuthWatch = watch(
+      () => authStore.user?.uid ?? null,
+      (uid) => {
+        cleanupListeners()
+        currentUserId.value = uid
+        if (uid) {
+          startFriendsListener(uid)
+        } else {
+          friends.value = []
+          directMessages.value = {}
+          groupMessages.value = {}
+        }
+      },
+      { immediate: true }
+    )
     initialized.value = true
   }
 
-  function seedMockData() {
-    const seeds: Friend[] = [
-      {
-        userId: 'alex.dev.seed',
-        displayName: 'Alex Dev',
-        handle: 'alex.dev#10001'
-      },
-      {
-        userId: 'minji.pm.seed',
-        displayName: 'Minji PM',
-        handle: 'minji.pm#20001'
-      }
-    ]
-    friends.value = seeds
-    const [alex, minji] = seeds
-    const map: Record<string, ChatMessage[]> = {}
-    if (alex) {
-      map[alex.userId] = [
-        {
-          id: nextMessageId(),
-          senderId: alex.userId,
-          senderName: alex.displayName,
-          content: '이번 주 스프린트 보드 확인했어?',
-          sentAt: new Date(Date.now() - 42 * 60 * 1000),
-          channelType: 'direct',
-          channelId: alex.userId
-        },
-        {
-          id: nextMessageId(),
-          senderId: alex.userId,
-          senderName: alex.displayName,
-          content: '데이터 파이프라인 태스크 도움이 필요하면 알려줘!',
-          sentAt: new Date(Date.now() - 38 * 60 * 1000),
-          channelType: 'direct',
-          channelId: alex.userId
-        }
-      ]
+  function cleanupListeners() {
+    if (friendsUnsubscribe) {
+      friendsUnsubscribe()
+      friendsUnsubscribe = null
     }
-    if (minji) {
-      map[minji.userId] = [
-        {
-          id: nextMessageId(),
-          senderId: minji.userId,
-          senderName: minji.displayName,
-          content: '회의 초대 보냈어. 시간 괜찮니?',
-          sentAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-          channelType: 'direct',
-          channelId: minji.userId
+    directMessageUnsubs.forEach((unsub) => unsub())
+    directMessageUnsubs.clear()
+    groupMessageUnsubs.forEach((unsub) => unsub())
+    groupMessageUnsubs.clear()
+  }
+
+  function startFriendsListener(uid: string) {
+    const friendRef = collection(firestore, 'friendships', uid, 'items')
+    friendsUnsubscribe = onSnapshot(friendRef, (snapshot) => {
+      friends.value = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data()
+        return {
+          userId: docSnap.id,
+          displayName: data.displayName ?? '친구',
+          handle: data.handle ?? '',
+          photoUrl: data.photoUrl ?? null
         }
-      ]
-    }
-    directMessages.value = map
+      })
+    })
   }
 
   async function addFriend(profile: UserProfile): Promise<Friend | null> {
+    const uid = currentUserId.value
+    if (!uid) {
+      errorMessage.value = '로그인 후 이용해주세요.'
+      return null
+    }
     if (friends.value.some((friend) => friend.userId === profile.uid)) {
       errorMessage.value = '이미 추가된 친구입니다.'
       return null
     }
-    const friend: Friend = {
+    const myProfile =
+      userDirectory.profileForUid(uid) ?? (await userDirectory.fetchByUid(uid))
+    if (!myProfile) {
+      errorMessage.value = '내 프로필을 확인할 수 없습니다.'
+      return null
+    }
+
+    await Promise.all([
+      setDoc(doc(firestore, 'friendships', uid, 'items', profile.uid), {
+        displayName: profile.displayName,
+        handle: profile.handle,
+        photoUrl: profile.photoUrl ?? null,
+        userId: profile.uid,
+        createdAt: serverTimestamp()
+      }),
+      setDoc(doc(firestore, 'friendships', profile.uid, 'items', uid), {
+        displayName: myProfile.displayName,
+        handle: myProfile.handle,
+        photoUrl: myProfile.photoUrl ?? null,
+        userId: uid,
+        createdAt: serverTimestamp()
+      })
+    ])
+    errorMessage.value = null
+    ensureDirectMessages(profile.uid)
+    return {
       userId: profile.uid,
       displayName: profile.displayName,
       handle: profile.handle,
       photoUrl: profile.photoUrl
     }
-    friends.value = [...friends.value, friend]
-    directMessages.value = { ...directMessages.value, [friend.userId]: [] }
-    errorMessage.value = null
-    return friend
   }
 
   async function sendDirectMessage(params: {
@@ -96,20 +125,21 @@ export const useSocialStore = defineStore('social', () => {
   }) {
     const trimmed = params.content.trim()
     if (!trimmed) return
-    const existing = directMessages.value[params.friendId] ?? []
-    const message: ChatMessage = {
-      id: nextMessageId(),
+    const uid = currentUserId.value
+    if (!uid) {
+      errorMessage.value = '로그인 후 이용해주세요.'
+      return
+    }
+    const conversationId = getConversationId(uid, params.friendId)
+    await addDoc(collection(firestore, 'directMessages', conversationId, 'messages'), {
       senderId: params.sender.uid,
       senderName: params.sender.displayName ?? '나',
       content: trimmed,
-      sentAt: new Date(),
+      sentAt: serverTimestamp(),
       channelType: 'direct',
-      channelId: params.friendId
-    }
-    directMessages.value = {
-      ...directMessages.value,
-      [params.friendId]: [...existing, message]
-    }
+      channelId: conversationId
+    })
+    ensureDirectMessages(params.friendId)
   }
 
   async function sendGroupMessage(params: {
@@ -120,20 +150,47 @@ export const useSocialStore = defineStore('social', () => {
   }) {
     const trimmed = params.content.trim()
     if (!trimmed) return
-    const existing = groupMessages.value[params.groupId] ?? []
-    const message: ChatMessage = {
-      id: nextMessageId(),
+    await addDoc(collection(firestore, 'groupMessages', params.groupId, 'messages'), {
       senderId: params.sender.uid,
       senderName: params.sender.displayName ?? '나',
       content: trimmed,
-      sentAt: new Date(),
+      sentAt: serverTimestamp(),
       channelType: 'group',
       channelId: params.groupId
-    }
-    groupMessages.value = {
-      ...groupMessages.value,
-      [params.groupId]: [...existing, message]
-    }
+    })
+    ensureGroupMessages(params.groupId)
+  }
+
+  function ensureDirectMessages(friendId: string) {
+    const uid = currentUserId.value
+    if (!uid || directMessageUnsubs.has(friendId)) return
+    const conversationId = getConversationId(uid, friendId)
+    const q = query(
+      collection(firestore, 'directMessages', conversationId, 'messages'),
+      orderBy('sentAt', 'asc')
+    )
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      directMessages.value = {
+        ...directMessages.value,
+        [friendId]: snapshot.docs.map((docSnap) => mapMessage(docSnap.id, docSnap.data()))
+      }
+    })
+    directMessageUnsubs.set(friendId, unsubscribe)
+  }
+
+  function ensureGroupMessages(groupId: string) {
+    if (groupMessageUnsubs.has(groupId)) return
+    const q = query(
+      collection(firestore, 'groupMessages', groupId, 'messages'),
+      orderBy('sentAt', 'asc')
+    )
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      groupMessages.value = {
+        ...groupMessages.value,
+        [groupId]: snapshot.docs.map((docSnap) => mapMessage(docSnap.id, docSnap.data()))
+      }
+    })
+    groupMessageUnsubs.set(groupId, unsubscribe)
   }
 
   function messagesForFriend(friendId: string): ChatMessage[] {
@@ -144,8 +201,20 @@ export const useSocialStore = defineStore('social', () => {
     return groupMessages.value[groupId] ?? []
   }
 
-  function nextMessageId() {
-    return `msg_${messageCounter++}`
+  function mapMessage(id: string, data: any): ChatMessage {
+    return {
+      id,
+      senderId: data.senderId ?? 'unknown',
+      senderName: data.senderName ?? 'unknown',
+      content: data.content ?? '',
+      sentAt: data.sentAt?.toDate?.() ?? new Date(),
+      channelType: data.channelType ?? 'direct',
+      channelId: data.channelId ?? ''
+    }
+  }
+
+  function getConversationId(uid: string, friendId: string) {
+    return [uid, friendId].sort().join('__')
   }
 
   return {
@@ -155,6 +224,8 @@ export const useSocialStore = defineStore('social', () => {
     addFriend,
     sendDirectMessage,
     sendGroupMessage,
+    ensureDirectMessages,
+    ensureGroupMessages,
     messagesForFriend,
     groupMessagesFor
   }

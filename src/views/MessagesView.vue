@@ -102,23 +102,20 @@
       </section>
     </div>
 
-    <div v-if="addFriendDialog" class="dialog-backdrop">
-      <div class="dialog">
-        <h3>새 친구 추가</h3>
-        <input v-model="friendHandle" class="input" type="text" placeholder="예: teammate#12345" />
-        <p class="text-muted">핸들 형식은 이름#숫자 입니다.</p>
-        <div class="dialog-actions">
-          <button class="btn btn-outline" @click="closeAddFriendDialog">취소</button>
-          <button class="btn btn-primary" @click="submitAddFriend">추가</button>
-        </div>
-        <p v-if="friendError" class="text-muted">{{ friendError }}</p>
-      </div>
-    </div>
+    <AppDialog v-model="addFriendDialog" title="새 친구 추가">
+      <input v-model="friendHandle" class="input" type="text" placeholder="예: teammate#12345" />
+      <p class="text-muted">핸들 형식은 이름#숫자 입니다.</p>
+      <p v-if="friendError" class="text-muted">{{ friendError }}</p>
+      <template #footer>
+        <button class="btn btn-outline" @click="closeAddFriendDialog">취소</button>
+        <button class="btn btn-primary" @click="submitAddFriend">추가</button>
+      </template>
+    </AppDialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { useAuthStore } from '../stores/auth'
 import { useGroupStore } from '../stores/group'
@@ -127,6 +124,7 @@ import * as userDirectory from '../services/userDirectory'
 
 import MessageComposer from '../components/messages/MessageComposer.vue'
 import MessageHistory from '../components/messages/MessageHistory.vue'
+import AppDialog from '../components/common/AppDialog.vue'
 
 const authStore = useAuthStore()
 const groupStore = useGroupStore()
@@ -139,40 +137,66 @@ const groupMessage = ref('')
 const addFriendDialog = ref(false)
 const friendHandle = ref('')
 const friendError = ref<string | null>(null)
+const sendingDirect = ref(false)
+const sendingGroup = ref(false)
 
 const currentUserId = computed(() => authStore.user?.uid ?? null)
 const selectedFriend = computed(() =>
   socialStore.friends.find((friend) => friend.userId === selectedFriendId.value)
 )
 
+watch(
+  () => [groupStore.currentGroupId, isGroupSelected.value],
+  ([groupId, isGroup]) => {
+    if (isGroup && groupId) {
+      socialStore.ensureGroupMessages(groupId)
+    }
+  },
+  { immediate: true }
+)
+
 function selectFriend(id: string) {
   selectedFriendId.value = id
   isGroupSelected.value = false
+  socialStore.ensureDirectMessages(id)
 }
 
 function selectGroupChannel() {
   isGroupSelected.value = true
+  if (groupStore.currentGroup) {
+    socialStore.ensureGroupMessages(groupStore.currentGroup.id)
+  }
 }
 
 async function sendDirectMessage() {
-  if (!selectedFriendId.value || !authStore.user) return
-  await socialStore.sendDirectMessage({
-    friendId: selectedFriendId.value,
-    sender: authStore.user,
-    content: directMessage.value
-  })
-  directMessage.value = ''
+  if (!selectedFriendId.value || !authStore.user || sendingDirect.value) return
+  sendingDirect.value = true
+  try {
+    await socialStore.sendDirectMessage({
+      friendId: selectedFriendId.value,
+      sender: authStore.user,
+      content: directMessage.value
+    })
+    directMessage.value = ''
+  } finally {
+    sendingDirect.value = false
+  }
 }
 
 async function sendGroupMessage() {
-  if (!groupStore.currentGroup || !authStore.user) return
-  await socialStore.sendGroupMessage({
-    groupId: groupStore.currentGroup.id,
-    groupName: groupStore.currentGroup.name,
-    sender: authStore.user,
-    content: groupMessage.value
-  })
-  groupMessage.value = ''
+  if (!groupStore.currentGroup || !authStore.user || sendingGroup.value) return
+  sendingGroup.value = true
+  try {
+    await socialStore.sendGroupMessage({
+      groupId: groupStore.currentGroup.id,
+      groupName: groupStore.currentGroup.name,
+      sender: authStore.user,
+      content: groupMessage.value
+    })
+    groupMessage.value = ''
+  } finally {
+    sendingGroup.value = false
+  }
 }
 
 function openAddFriendDialog() {

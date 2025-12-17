@@ -25,7 +25,7 @@ const groupStore = useGroupStore(pinia)
 groupStore.init(authStore)
 
 const socialStore = useSocialStore(pinia)
-socialStore.init()
+socialStore.init(authStore)
 
 app.use(router)
 

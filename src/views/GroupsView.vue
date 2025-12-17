@@ -69,46 +69,41 @@
       </TransitionGroup>
     </section>
 
-    <div v-if="createDialogOpen" class="dialog-backdrop">
-      <div class="dialog">
-        <h3>새 그룹 만들기</h3>
-        <input
-          v-model="newGroupName"
-          class="input"
-          type="text"
-          placeholder="예: 데이터 분석팀"
-        />
-        <div class="dialog-actions">
-          <button class="btn btn-outline" @click="closeCreateDialog">취소</button>
-          <button class="btn btn-primary" @click="submitCreateGroup">생성</button>
-        </div>
-      </div>
-    </div>
+    <AppDialog v-model="createDialogOpen" title="새 그룹 만들기">
+      <input
+        v-model="newGroupName"
+        class="input"
+        type="text"
+        placeholder="예: 데이터 분석팀"
+      />
+      <template #footer>
+        <button class="btn btn-outline" @click="closeCreateDialog">취소</button>
+        <button class="btn btn-primary" @click="submitCreateGroup">생성</button>
+      </template>
+    </AppDialog>
 
-    <div v-if="memberDialogGroup" class="dialog-backdrop">
-      <div class="dialog">
-        <h3>멤버 추가 · {{ memberDialogGroup.name }}</h3>
-        <input
-          v-model="memberHandle"
-          class="input"
-          type="text"
-          placeholder="예: username#12345"
-        />
-        <div class="dialog-actions">
-          <button class="btn btn-outline" @click="closeMemberDialog">취소</button>
-          <button class="btn btn-primary" @click="submitAddMember">추가</button>
-        </div>
-        <p v-if="memberError" class="text-muted">{{ memberError }}</p>
-      </div>
-    </div>
+    <AppDialog v-model="memberDialogVisible" :title="memberDialogTitle">
+      <input
+        v-model="memberHandle"
+        class="input"
+        type="text"
+        placeholder="예: username#12345"
+      />
+      <p v-if="memberError" class="text-muted">{{ memberError }}</p>
+      <template #footer>
+        <button class="btn btn-outline" @click="closeMemberDialog">취소</button>
+        <button class="btn btn-primary" @click="submitAddMember">추가</button>
+      </template>
+    </AppDialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import CurrentWorkspaceBanner from '../components/groups/CurrentWorkspaceBanner.vue'
+import AppDialog from '../components/common/AppDialog.vue'
 import { useGroupStore } from '../stores/group'
 import * as userDirectory from '../services/userDirectory'
 import type { Group } from '../types'
@@ -119,8 +114,19 @@ const router = useRouter()
 const createDialogOpen = ref(false)
 const newGroupName = ref('')
 const memberDialogGroup = ref<Group | null>(null)
+const memberDialogVisible = computed({
+  get: () => !!memberDialogGroup.value,
+  set: (value: boolean) => {
+    if (!value) {
+      memberDialogGroup.value = null
+    }
+  }
+})
 const memberHandle = ref('')
 const memberError = ref<string | null>(null)
+const memberDialogTitle = computed(() =>
+  memberDialogGroup.value ? `멤버 추가 · ${memberDialogGroup.value.name}` : '멤버 추가'
+)
 
 function openCreateDialog() {
   createDialogOpen.value = true
@@ -195,33 +201,6 @@ function formatDateTime(date: Date) {
 
 .group-card h4 {
   margin: 0;
-}
-
-.dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-}
-
-.dialog {
-  width: min(420px, 90vw);
-  background: var(--app-surface);
-  border-radius: var(--app-radius);
-  border: 1px solid var(--app-border);
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
 }
 
 .error-banner {

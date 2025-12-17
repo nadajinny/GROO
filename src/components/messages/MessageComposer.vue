@@ -1,17 +1,16 @@
 <template>
-  <div class="composer">
+  <form class="composer" @submit.prevent="send">
     <input
       v-model="localValue"
       class="input"
       type="text"
       :placeholder="placeholder"
       :disabled="disabled"
-      @keyup.enter="send"
     />
-    <button class="btn btn-primary" :disabled="disabled || !localValue.trim()" @click="send">
+    <button type="submit" class="btn btn-primary" :disabled="disabled || !localValue.trim()">
       보내기
     </button>
-  </div>
+  </form>
 </template>
 
 <script setup lang="ts">
