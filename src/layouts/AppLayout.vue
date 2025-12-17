@@ -1,19 +1,19 @@
 <template>
   <div class="app-layout">
+    <div class="app-layout__backdrop" aria-hidden="true">
+      <span class="orb orb--one"></span>
+      <span class="orb orb--two"></span>
+    </div>
     <header class="app-layout__header">
       <div class="app-layout__brand">
-        <div class="logo">Lab Tool</div>
-        <nav class="app-layout__nav">
-        <RouterLink
-          v-for="item in destinations"
-          :key="item.path"
-          :to="item.path"
-          class="app-layout__nav-link"
-          :class="{ active: route.path.startsWith(item.path) }"
-        >
-          <span>{{ item.label }}</span>
-        </RouterLink>
-        </nav>
+        <div class="logo-mark">
+          <span>G</span>
+        </div>
+        <div>
+          <p class="eyebrow">GROO COLLABORATION</p>
+          <div class="logo-title">Lab Tool Workspace</div>
+          <p class="logo-desc">실험실 협업과 프로젝트, 메신저를 한 번에 관리하세요.</p>
+        </div>
       </div>
       <div class="app-layout__user" v-if="authStore.user">
         <div class="user-meta">
@@ -41,6 +41,20 @@
         </button>
       </div>
     </header>
+    <div class="app-layout__nav-shell">
+      <nav class="app-layout__nav">
+        <RouterLink
+          v-for="item in destinations"
+          :key="item.path"
+          :to="item.path"
+          class="app-layout__nav-link"
+          :class="{ active: route.path.startsWith(item.path) }"
+        >
+          <span class="nav-label">{{ item.label }}</span>
+          <span class="nav-dot" />
+        </RouterLink>
+      </nav>
+    </div>
     <div class="app-layout__body">
       <aside class="app-layout__sidebar" v-if="authStore.user">
         <GroupSidebar />
@@ -89,57 +103,139 @@ const initials = computed(() => {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.app-layout__backdrop {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.35;
+}
+
+.orb {
+  position: absolute;
+  width: 480px;
+  height: 480px;
+  border-radius: 50%;
+  filter: blur(160px);
+}
+
+.orb--one {
+  top: -120px;
+  left: -120px;
+  background: #6d42ff;
+}
+
+.orb--two {
+  bottom: -180px;
+  right: -140px;
+  background: #3ed5ff;
 }
 
 .app-layout__header {
   position: sticky;
   top: 0;
-  background: rgba(5, 5, 5, 0.9);
-  border-bottom: 1px solid var(--app-border);
-  padding: 20px clamp(16px, 4vw, 40px);
+  background: rgba(5, 6, 25, 0.82);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 24px clamp(16px, 4vw, 40px);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  z-index: 10;
-  backdrop-filter: blur(24px);
+  gap: 20px;
+  z-index: 5;
+  backdrop-filter: blur(30px);
 }
 
 .app-layout__brand {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 18px;
   flex-wrap: wrap;
 }
 
-.logo {
+.logo-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #8e6bff, #5db7ff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 24px;
+  color: #050412;
+  box-shadow: 0 15px 35px rgba(111, 127, 255, 0.5);
+}
+
+.eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.logo-title {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.logo-desc {
+  margin: 4px 0 0;
+  color: var(--app-text-muted);
+  max-width: 520px;
+}
+
+.app-layout__nav-shell {
+  padding: 0 clamp(16px, 4vw, 40px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(8, 9, 32, 0.7);
+  backdrop-filter: blur(16px);
+  z-index: 4;
 }
 
 .app-layout__nav {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  padding: 16px 0;
 }
 
 .app-layout__nav-link {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
   border-radius: 999px;
   text-decoration: none;
   color: var(--app-text-muted);
-  border: 1px solid transparent;
-  transition: border 0.2s ease, color 0.2s ease, background 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
+  transition: border 0.2s ease, color 0.2s ease, background 0.2s ease,
+    transform 0.2s ease;
 }
 
 .app-layout__nav-link.active {
-  border-color: var(--app-border-light);
+  border-color: rgba(255, 255, 255, 0.25);
   color: var(--app-text);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+.nav-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--app-text-muted);
+  opacity: 0.4;
+}
+
+.app-layout__nav-link.active .nav-dot {
+  background: #fff;
+  opacity: 1;
 }
 
 .app-layout__user {
@@ -156,10 +252,11 @@ const initials = computed(() => {
 }
 
 .user-avatar {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.25);
 }
 
 .user-avatar.fallback {
@@ -182,29 +279,36 @@ const initials = computed(() => {
 .app-layout__body {
   flex: 1;
   display: flex;
+  gap: 20px;
+  padding: 24px clamp(16px, 4vw, 40px) 80px;
 }
 
 .app-layout__sidebar {
-  width: 270px;
-  border-right: 1px solid var(--app-border);
-  background: rgba(0, 0, 0, 0.2);
-  padding: 20px;
+  width: 290px;
+  border-right: none;
+  position: sticky;
+  top: 140px;
+  align-self: flex-start;
 }
 
 .app-layout__content {
   flex: 1;
   min-height: 100%;
-  background: transparent;
 }
 
 @media (max-width: 1024px) {
+  .app-layout__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .app-layout__body {
     flex-direction: column;
   }
+
   .app-layout__sidebar {
     width: 100%;
-    border-right: none;
-    border-bottom: 1px solid var(--app-border);
+    position: static;
   }
 }
 </style>

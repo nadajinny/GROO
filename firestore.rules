@@ -1,0 +1,134 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /* =====================
+       공통 함수
+    ===================== */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function membershipDocPath(groupId, userId) {
+      return /databases/$(database)/documents/groupMembers/$(groupId + "_" + userId);
+    }
+
+    function validMembershipDoc(memberId, data) {
+      return data.groupId is string
+        && data.userId is string
+        && data.role is string
+        && data.role in ['owner', 'member']
+        && memberId == data.groupId + "_" + data.userId;
+    }
+
+    function isGroupMember(groupId) {
+      return isSignedIn()
+        && groupId is string
+        && exists(membershipDocPath(groupId, request.auth.uid));
+    }
+
+    function isGroupOwner(groupId) {
+      return isGroupMember(groupId)
+        && get(membershipDocPath(groupId, request.auth.uid)).data.role == 'owner';
+    }
+
+    function isGroupCreator(groupId) {
+      return isSignedIn()
+        && groupId is string
+        && get(/databases/$(database)/documents/groups/$(groupId)).data.createdBy == request.auth.uid;
+    }
+
+    function groupIdForProject(projectId) {
+      return get(/databases/$(database)/documents/projects/$(projectId)).data.groupId;
+    }
+
+    function isProjectMember(projectId) {
+      return projectId is string
+        && isGroupMember(groupIdForProject(projectId));
+    }
+
+    function canCreateOwnerMembership(data) {
+      return data.userId == request.auth.uid
+        && data.role == 'owner'
+        && isGroupCreator(data.groupId);
+    }
+
+    /* =====================
+       groupMembers
+       ===================== */
+    match /groupMembers/{memberId} {
+      allow read: if isGroupMember(resource.data.groupId);
+
+      allow create: if isSignedIn()
+        && validMembershipDoc(memberId, request.resource.data)
+        && (
+          isGroupOwner(request.resource.data.groupId)
+          || canCreateOwnerMembership(request.resource.data)
+        );
+
+      allow delete: if isSignedIn()
+        && validMembershipDoc(memberId, resource.data)
+        && (
+          isGroupOwner(resource.data.groupId)
+          || resource.data.userId == request.auth.uid
+        );
+
+      allow update: if false; // role 변경은 서버에서만
+    }
+
+    /* =====================
+       groups
+       ===================== */
+    match /groups/{groupId} {
+      allow read: if isSignedIn() && isGroupMember(groupId);
+
+      allow create: if isSignedIn()
+        && request.resource.data.createdBy == request.auth.uid;
+
+      allow update, delete: if isSignedIn()
+        && resource.data.createdBy == request.auth.uid;
+    }
+
+    /* =====================
+       projects
+       ===================== */
+    match /projects/{projectId} {
+      allow read: if isSignedIn()
+        && isGroupMember(resource.data.groupId);
+
+      allow create: if isSignedIn()
+        && request.resource.data.groupId is string
+        && isGroupMember(request.resource.data.groupId)
+        && request.resource.data.createdBy == request.auth.uid;
+
+      allow update, delete: if isSignedIn()
+        && isGroupMember(resource.data.groupId);
+    }
+
+    /* =====================
+       tasks
+       ===================== */
+    match /tasks/{taskId} {
+      allow read: if isSignedIn()
+        && isProjectMember(resource.data.projectId);
+
+      allow create: if isSignedIn()
+        && request.resource.data.projectId is string
+        && isProjectMember(request.resource.data.projectId)
+        && request.resource.data.createdBy == request.auth.uid;
+
+      allow update, delete: if isSignedIn()
+        && request.auth.uid == resource.data.createdBy
+        && isProjectMember(resource.data.projectId);
+    }
+
+    /* =====================
+       userProfiles
+       ===================== */
+    match /userProfiles/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.uid == uid;
+    }
+  }
+}

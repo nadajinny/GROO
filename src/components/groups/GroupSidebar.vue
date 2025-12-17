@@ -11,6 +11,16 @@
         전체보기
       </RouterLink>
     </div>
+    <div class="sidebar-card__stats">
+      <div>
+        <p>참여 그룹</p>
+        <strong>{{ groupStore.groups.length }}</strong>
+      </div>
+      <div>
+        <p>선택됨</p>
+        <strong>{{ selectedGroupLabel }}</strong>
+      </div>
+    </div>
     <div v-if="groupStore.isFetching && !groupStore.groups.length" class="empty">
       그룹 정보를 불러오는 중...
     </div>
@@ -61,6 +71,10 @@ const currentGroupLink = computed(() => {
   return selectedId ? `/app/groups/${selectedId}` : '/app/groups'
 })
 
+const selectedGroupLabel = computed(
+  () => groupStore.currentGroup?.name ?? '전체'
+)
+
 function groupMeta(groupId: string) {
   const role = groupStore.roleForGroup(groupId)
   if (role === 'owner') return '역할: Owner'
@@ -71,13 +85,15 @@ function groupMeta(groupId: string) {
 
 <style scoped>
 .sidebar-card {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--app-border);
+  background: rgba(12, 14, 32, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--app-radius);
-  padding: 18px;
+  padding: 22px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 20px;
+  box-shadow: var(--app-shadow-soft);
+  backdrop-filter: blur(18px);
 }
 
 .sidebar-card__header {
@@ -96,6 +112,29 @@ function groupMeta(groupId: string) {
   font-size: 13px;
 }
 
+.sidebar-card__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.sidebar-card__stats p {
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--app-text-muted);
+}
+
+.sidebar-card__stats strong {
+  font-size: 18px;
+  font-weight: 600;
+}
+
 .sidebar-list {
   display: flex;
   flex-direction: column;
@@ -106,20 +145,22 @@ function groupMeta(groupId: string) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px;
-  border-radius: 14px;
-  border: 1px solid transparent;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   cursor: pointer;
-  transition: border 0.2s ease, background 0.2s ease;
+  transition: border 0.2s ease, background 0.2s ease, transform 0.2s;
+  background: rgba(255, 255, 255, 0.01);
 }
 
 .sidebar-item:hover {
-  border-color: var(--app-border-light);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .sidebar-item.active {
   border-color: rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
 }
 
 .sidebar-item__title {
@@ -133,10 +174,11 @@ function groupMeta(groupId: string) {
 }
 
 .empty {
-  border-radius: 14px;
-  border: 1px dashed var(--app-border);
+  border-radius: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
   padding: 24px;
   text-align: center;
   color: var(--app-text-muted);
+  background: rgba(255, 255, 255, 0.01);
 }
 </style>

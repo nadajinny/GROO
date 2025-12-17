@@ -416,9 +416,10 @@ watch(
 }
 
 .calendar-day {
-  border: 1px solid var(--app-border);
-  border-radius: 16px;
-  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .calendar-day__header {
@@ -430,13 +431,14 @@ watch(
 
 .calendar-day__date {
   font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .calendar-task {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 0;
+  padding: 12px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
@@ -454,9 +456,10 @@ watch(
 }
 
 .task-card {
-  border: 1px solid var(--app-border);
-  border-radius: 16px;
-  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .task-card header {
@@ -499,6 +502,10 @@ watch(
   cursor: pointer;
 }
 
+.subtask__row input {
+  accent-color: var(--app-primary-strong);
+}
+
 .notifications {
   display: flex;
   flex-direction: column;
@@ -508,20 +515,23 @@ watch(
 .notification {
   display: flex;
   justify-content: space-between;
-  border: 1px solid var(--app-border);
-  border-radius: 16px;
-  padding: 14px;
+  align-items: flex-start;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 16px;
   gap: 12px;
   width: 100%;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.01);
   color: inherit;
   cursor: pointer;
   text-align: left;
+  transition: transform 0.2s ease, border 0.2s ease;
 }
 
 .notification:hover,
 .notification:focus-visible {
-  border-color: rgba(255, 255, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
 }
 
 .notification__title {

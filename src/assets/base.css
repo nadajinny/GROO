@@ -1,19 +1,22 @@
 :root {
-  --app-bg: #050505;
-  --app-surface: #111111;
-  --app-surface-alt: #171717;
-  --app-border: #2a2a2a;
-  --app-border-light: #3a3a3a;
-  --app-primary: #ffffff;
-  --app-primary-muted: rgba(255, 255, 255, 0.8);
-  --app-text: #f4f4f4;
-  --app-text-muted: rgba(255, 255, 255, 0.65);
-  --app-danger: #ff6b6b;
-  --app-success: #4ade80;
-  --app-warning: #facc15;
-  --app-radius: 18px;
-  --app-card-padding: 24px;
+  --app-bg: #030415;
+  --app-surface: rgba(13, 11, 25, 0.85);
+  --app-surface-alt: rgba(24, 22, 38, 0.85);
+  --app-border: rgba(255, 255, 255, 0.08);
+  --app-border-light: rgba(255, 255, 255, 0.2);
+  --app-primary: #b3b8ff;
+  --app-primary-strong: #8392ff;
+  --app-primary-muted: rgba(179, 184, 255, 0.12);
+  --app-text: #f7f7ff;
+  --app-text-muted: rgba(247, 247, 255, 0.75);
+  --app-danger: #ff8da1;
+  --app-success: #5ef0b5;
+  --app-warning: #ffe08c;
+  --app-radius: 20px;
+  --app-card-padding: 26px;
   --app-max-width: 1240px;
+  --app-shadow-lg: 0 25px 60px rgba(4, 1, 23, 0.55);
+  --app-shadow-soft: 0 6px 30px rgba(6, 8, 30, 0.4);
   color-scheme: dark;
 }
 
@@ -40,14 +43,45 @@ body {
     'Droid Sans',
     'Helvetica Neue',
     sans-serif;
-  background: radial-gradient(circle at top, #181818 0%, #050505 60%);
+  background:
+    radial-gradient(circle at 12% -10%, rgba(118, 77, 255, 0.9), transparent 55%),
+    radial-gradient(circle at 90% 0%, rgba(16, 212, 255, 0.35), transparent 40%),
+    linear-gradient(160deg, #050415 0%, #040112 65%, #03010e 100%);
   color: var(--app-text);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  position: relative;
+  overflow-x: hidden;
+}
+
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  filter: blur(140px);
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: -2;
+}
+
+body::before {
+  background: #6a51ff;
+  top: -220px;
+  right: -120px;
+}
+
+body::after {
+  background: #00c2ff;
+  bottom: -240px;
+  left: -160px;
 }
 
 #app {
   min-height: 100vh;
+  position: relative;
 }
 
 a {
