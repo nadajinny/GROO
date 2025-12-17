@@ -50,6 +50,11 @@ const router = createRouter({
           component: () => import('../views/MessagesView.vue')
         },
         {
+          path: 'features',
+          name: 'features',
+          component: () => import('../views/FeaturesView.vue')
+        },
+        {
           path: 'profile',
           name: 'profile',
           component: () => import('../views/ProfileView.vue')
@@ -62,6 +67,11 @@ const router = createRouter({
         }
       ]
     },
+    {
+      path: '/features',
+      name: 'features-public',
+      component: () => import('../views/FeaturesView.vue')
+    },
     { path: '/:pathMatch(.*)*', redirect: '/' }
   ]
 })
@@ -73,7 +83,7 @@ router.beforeEach(async (to, _from, next) => {
   }
 
   const isLoggedIn = Boolean(authStore.user)
-  const publicPaths = ['/', '/login']
+  const publicPaths = ['/', '/login', '/features']
 
   if (!isLoggedIn && !publicPaths.includes(to.path)) {
     next({ path: '/', query: { redirect: to.fullPath } })
