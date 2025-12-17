@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
+import router from '../router'
 
 import type { AppUser, UserProfile } from '../types'
 import * as userDirectory from '../services/userDirectory'
@@ -104,6 +105,9 @@ export const useAuthStore = defineStore('auth', () => {
       clearPersistedUid()
       user.value = null
       profile.value = null
+      if (router.currentRoute.value.path !== '/') {
+        router.push('/')
+      }
     } catch (error: any) {
       console.error('Logout failed', error)
       errorMessage.value = error?.message ?? '로그아웃에 실패했습니다.'
