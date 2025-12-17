@@ -115,7 +115,15 @@
               </div>
               <ul v-else class="list-reset">
                 <li v-for="sub in subtasks[task.task.id]" :key="sub.id" class="subtask">
-                  <span>{{ sub.title }}</span>
+                  <label class="subtask__row">
+                    <input
+                      type="checkbox"
+                      :checked="sub.isDone"
+                      :disabled="isSubtaskLoading(task.task.id, sub.id)"
+                      @change="onSubtaskToggle(task.task.id, sub, $event)"
+                    />
+                    <span>{{ sub.title }}</span>
+                  </label>
                   <span class="chip">{{ sub.isDone ? '완료' : '진행중' }}</span>
                 </li>
               </ul>
@@ -136,17 +144,23 @@
           최근 업데이트된 알림이 없습니다.
         </div>
         <ul v-else class="list-reset notifications">
-          <li v-for="notice in notifications" :key="notice.id" class="notification">
-            <div>
-              <div class="notification__title">{{ notice.title }}</div>
-              <div class="notification__desc">{{ notice.description }}</div>
-              <div class="notification__meta">
-                {{ notice.groupName }} · {{ notice.projectName }}
+          <li v-for="notice in notifications" :key="notice.id">
+            <button
+              type="button"
+              class="notification"
+              @click="notificationTarget(notice.groupId)"
+            >
+              <div>
+                <div class="notification__title">{{ notice.title }}</div>
+                <div class="notification__desc">{{ notice.description }}</div>
+                <div class="notification__meta">
+                  {{ notice.groupName }} · {{ notice.projectName }}
+                </div>
               </div>
-            </div>
-            <div class="notification__time">
-              {{ notice.timestamp ? formatTime(notice.timestamp) : '-' }}
-            </div>
+              <div class="notification__time">
+                {{ notice.timestamp ? formatTime(notice.timestamp) : '-' }}
+              </div>
+            </button>
           </li>
         </ul>
       </section>
@@ -157,6 +171,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { format } from 'date-fns'
+import { useRouter } from 'vue-router'
 
 import CurrentWorkspaceBanner from '../components/groups/CurrentWorkspaceBanner.vue'
 import { useAuthStore } from '../stores/auth'
@@ -178,10 +193,14 @@ interface DashboardNotification {
   groupName: string
   projectName: string
   timestamp: Date | null | undefined
+  groupId: string
+  projectId?: string
+  taskId?: string
 }
 
 const authStore = useAuthStore()
 const groupStore = useGroupStore()
+const router = useRouter()
 
 const assignedTasks = ref<AssignedTask[]>([])
 const notifications = ref<DashboardNotification[]>([])
@@ -190,6 +209,7 @@ const tasksByDay = ref<Record<string, AssignedTask[]>>({})
 const undatedTasks = ref<AssignedTask[]>([])
 const isLoading = ref(true)
 const errorMessage = ref<string | null>(null)
+const subtaskLoading = ref<Record<string, boolean>>({})
 
 const datedGroups = computed(() => tasksByDay.value)
 
@@ -238,7 +258,10 @@ async function loadDashboard() {
                 : '내가 생성한 태스크에 변경이 있습니다.',
               groupName: group.name,
               projectName: project.name,
-              timestamp: task.createdAt
+              timestamp: task.createdAt,
+              groupId: group.id,
+              projectId: project.id,
+              taskId: task.id
             })
           }
         }
@@ -249,7 +272,9 @@ async function loadDashboard() {
             description: '프로젝트가 생성되었습니다.',
             groupName: group.name,
             projectName: project.name,
-            timestamp: project.createdAt
+            timestamp: project.createdAt,
+            groupId: group.id,
+            projectId: project.id
           })
         }
       }
@@ -306,6 +331,52 @@ function formatDate(date: Date) {
 
 function formatTime(date: Date) {
   return format(date, 'MM/dd HH:mm')
+}
+
+function notificationTarget(groupId: string) {
+  groupStore.selectGroup(groupId)
+  router.push('/app/projects')
+}
+
+async function refreshSubtasks(taskId: string) {
+  const latest = await taskService.getSubtasks(taskId)
+  subtasks.value = { ...subtasks.value, [taskId]: latest }
+}
+
+function isSubtaskLoading(taskId: string, subtaskId: string) {
+  const key = `${taskId}_${subtaskId}`
+  return Boolean(subtaskLoading.value[key])
+}
+
+async function onSubtaskToggle(taskId: string, subtask: Subtask, event: Event) {
+  const checkbox = event.target as HTMLInputElement
+  const nextValue = checkbox.checked
+  await toggleSubtask(taskId, subtask, nextValue, checkbox)
+}
+
+async function toggleSubtask(
+  taskId: string,
+  subtask: Subtask,
+  isDone: boolean,
+  control?: HTMLInputElement
+) {
+  const key = `${taskId}_${subtask.id}`
+  subtaskLoading.value = { ...subtaskLoading.value, [key]: true }
+  try {
+    await taskService.toggleSubtaskDone({
+      taskId,
+      subtaskId: subtask.id,
+      isDone
+    })
+    await refreshSubtasks(taskId)
+  } catch (error) {
+    console.error('Failed to toggle subtask', error)
+    if (control) control.checked = !isDone
+  } finally {
+    const next = { ...subtaskLoading.value }
+    delete next[key]
+    subtaskLoading.value = next
+  }
 }
 
 watch(
@@ -416,7 +487,16 @@ watch(
 .subtask {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: 6px 0;
+  gap: 12px;
+}
+
+.subtask__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
 }
 
 .notifications {
@@ -432,6 +512,16 @@ watch(
   border-radius: 16px;
   padding: 14px;
   gap: 12px;
+  width: 100%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.notification:hover,
+.notification:focus-visible {
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .notification__title {

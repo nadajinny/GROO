@@ -25,7 +25,7 @@ const groupMembersCollection = collection(firestore, 'groupMembers')
 export const useGroupStore = defineStore('groups', () => {
   const groups = ref<Group[]>([])
   const currentGroupId = ref<string | null>(null)
-  const allowNullSelection = ref(false)
+  const allowNullSelection = ref(true)
   const isFetching = ref(false)
   const isCreating = ref(false)
   const errorMessage = ref<string | null>(null)
@@ -47,7 +47,7 @@ export const useGroupStore = defineStore('groups', () => {
           groups.value = []
           membershipRoles.value = {}
           currentGroupId.value = null
-          allowNullSelection.value = false
+          allowNullSelection.value = true
           groupMembers.value = {}
           memberErrors.value = new Set()
           membersFetching.value = new Set()
@@ -105,7 +105,7 @@ export const useGroupStore = defineStore('groups', () => {
       if (!groupIds.length) {
         groups.value = []
         currentGroupId.value = null
-        allowNullSelection.value = false
+        allowNullSelection.value = true
         return
       }
 
