@@ -10,8 +10,8 @@
           <span>G</span>
         </div>
         <div>
-          <p class="eyebrow">GROO COLLABORATION</p>
-          <div class="logo-title">Lab Tool Workspace</div>
+          <p class="eyebrow">Collaboration Platform</p>
+          <div class="logo-title">GROO</div>
         </div>
       </RouterLink>
       <nav class="app-layout__nav">

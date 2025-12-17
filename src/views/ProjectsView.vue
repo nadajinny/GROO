@@ -638,6 +638,13 @@ function openTaskDetail(taskId: string) {
   min-height: 200px;
 }
 
+.sidebar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
 .project-list {
   display: flex;
   flex-direction: column;
