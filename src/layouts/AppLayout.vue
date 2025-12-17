@@ -5,16 +5,26 @@
       <span class="orb orb--two"></span>
     </div>
     <header class="app-layout__header">
-      <div class="app-layout__brand">
+      <RouterLink class="app-layout__brand" :to="brandDestination">
         <div class="logo-mark">
           <span>G</span>
         </div>
         <div>
           <p class="eyebrow">GROO COLLABORATION</p>
           <div class="logo-title">Lab Tool Workspace</div>
-          <p class="logo-desc">실험실 협업과 프로젝트, 메신저를 한 번에 관리하세요.</p>
         </div>
-      </div>
+      </RouterLink>
+      <nav class="app-layout__nav">
+        <RouterLink
+          v-for="item in destinations"
+          :key="item.path"
+          :to="item.path"
+          class="app-layout__nav-link"
+          :class="{ active: route.path.startsWith(item.path) }"
+        >
+          <span class="nav-label">{{ item.label }}</span>
+        </RouterLink>
+      </nav>
       <div class="app-layout__user" v-if="authStore.user">
         <div class="user-meta">
           <img
@@ -41,20 +51,6 @@
         </button>
       </div>
     </header>
-    <div class="app-layout__nav-shell">
-      <nav class="app-layout__nav">
-        <RouterLink
-          v-for="item in destinations"
-          :key="item.path"
-          :to="item.path"
-          class="app-layout__nav-link"
-          :class="{ active: route.path.startsWith(item.path) }"
-        >
-          <span class="nav-label">{{ item.label }}</span>
-          <span class="nav-dot" />
-        </RouterLink>
-      </nav>
-    </div>
     <div class="app-layout__body">
       <aside class="app-layout__sidebar" v-if="authStore.user">
         <GroupSidebar />
@@ -96,6 +92,10 @@ const initials = computed(() => {
     .slice(0, 2)
     .toUpperCase()
 })
+
+const brandDestination = computed(() =>
+  authStore.user ? '/app/dashboard' : '/'
+)
 </script>
 
 <style scoped>
@@ -126,24 +126,23 @@ const initials = computed(() => {
 .orb--one {
   top: -120px;
   left: -120px;
-  background: #6d42ff;
+  background: var(--app-orb-1);
 }
 
 .orb--two {
   bottom: -180px;
   right: -140px;
-  background: #3ed5ff;
+  background: var(--app-orb-2);
 }
 
 .app-layout__header {
   position: sticky;
   top: 0;
-  background: rgba(5, 6, 25, 0.82);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 24px clamp(16px, 4vw, 40px);
+  background: var(--app-header-bg);
+  border-bottom: 1px solid var(--app-header-border);
+  padding: 16px clamp(16px, 4vw, 40px);
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 20px;
   z-index: 5;
   backdrop-filter: blur(30px);
@@ -152,8 +151,10 @@ const initials = computed(() => {
 .app-layout__brand {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 10px;
   flex-wrap: wrap;
+  text-decoration: none;
+  color: inherit;
 }
 
 .logo-mark {
@@ -171,71 +172,40 @@ const initials = computed(() => {
 }
 
 .eyebrow {
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 0.22em;
   margin: 0;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--app-text-muted);
 }
 
 .logo-title {
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 600;
-}
-
-.logo-desc {
-  margin: 4px 0 0;
-  color: var(--app-text-muted);
-  max-width: 520px;
-}
-
-.app-layout__nav-shell {
-  padding: 0 clamp(16px, 4vw, 40px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(8, 9, 32, 0.7);
-  backdrop-filter: blur(16px);
-  z-index: 4;
+  margin: 0;
 }
 
 .app-layout__nav {
   display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 16px 0;
+  gap: 6px;
+  flex: 1;
+  justify-content: flex-start;
 }
 
 .app-layout__nav-link {
   display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 18px;
+  padding: 10px 16px;
   border-radius: 999px;
   text-decoration: none;
   color: var(--app-text-muted);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(255, 255, 255, 0.02);
-  transition: border 0.2s ease, color 0.2s ease, background 0.2s ease,
-    transform 0.2s ease;
+  border: 1px solid transparent;
+  transition: border 0.2s ease, color 0.2s ease, background 0.2s ease;
 }
 
 .app-layout__nav-link.active {
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: var(--app-border-light);
   color: var(--app-text);
   background: rgba(255, 255, 255, 0.08);
-  transform: translateY(-1px);
-}
-
-.nav-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--app-text-muted);
-  opacity: 0.4;
-}
-
-.app-layout__nav-link.active .nav-dot {
-  background: #fff;
-  opacity: 1;
 }
 
 .app-layout__user {
@@ -243,6 +213,7 @@ const initials = computed(() => {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  margin-left: auto;
 }
 
 .user-meta {
@@ -287,7 +258,7 @@ const initials = computed(() => {
   width: 290px;
   border-right: none;
   position: sticky;
-  top: 140px;
+  top: 120px;
   align-self: flex-start;
 }
 
@@ -299,7 +270,6 @@ const initials = computed(() => {
 @media (max-width: 1024px) {
   .app-layout__header {
     flex-direction: column;
-    align-items: flex-start;
   }
 
   .app-layout__body {

@@ -5,8 +5,8 @@
       <span class="pill">Lab Tool Web</span>
       <h1>GROO로 실험실 협업을 한 번에</h1>
       <p>
-        Google 계정 한 번의 로그인만으로 프로젝트, 태스크, 그룹, 메신저까지
-        모두 관리할 수 있도록 Lab Tool에서 제공하던 기능을 그대로 옮겨왔습니다.
+        이메일 계정만으로 프로젝트, 태스크, 그룹, 메신저까지 모두 관리할 수 있도록
+        Lab Tool에서 제공하던 기능을 그대로 옮겨왔습니다.
       </p>
       <div class="login__highlights">
         <article v-for="item in highlights" :key="item.title">
@@ -21,28 +21,125 @@
     <section class="login__card app-card">
       <div class="login__card-header">
         <p class="pill small">시작하기</p>
-        <h2>계정을 연결하고 협업을 시작하세요</h2>
+        <h2>GROO 계정을 만들고 로그인하세요</h2>
         <p class="text-muted">
           Firebase Authentication · Cloud Firestore 환경을 그대로 사용합니다.
         </p>
       </div>
-      <div class="login__status" v-if="authStore.errorMessage">
+
+      <div class="login__tabs">
+        <button
+          v-for="tab in tabs"
+          :key="tab.value"
+          class="login__tab"
+          :class="{ active: activeTab === tab.value }"
+          type="button"
+          @click="switchTab(tab.value)"
+        >
+          {{ tab.label }}
+        </button>
+      </div>
+
+      <div class="login__status" v-if="localError">
+        {{ localError }}
+      </div>
+      <div class="login__status" v-else-if="authStore.errorMessage">
         {{ authStore.errorMessage }}
       </div>
-      <button class="btn btn-primary" :disabled="authStore.isLoading" @click="authStore.signInWithGoogle">
-        {{ authStore.isLoading ? '로그인 중...' : 'Google 계정으로 로그인' }}
-      </button>
+
+      <form v-if="activeTab === 'login'" class="login__form" @submit.prevent="handleLogin">
+        <label>이메일</label>
+        <input
+          v-model="loginForm.email"
+          class="input"
+          type="email"
+          autocomplete="email"
+          placeholder="you@example.com"
+        />
+        <label>비밀번호</label>
+        <input
+          v-model="loginForm.password"
+          class="input"
+          type="password"
+          autocomplete="current-password"
+          placeholder="••••••••"
+        />
+        <button class="btn btn-primary" type="submit" :disabled="authStore.isLoading">
+          {{ authStore.isLoading ? '로그인 중...' : '로그인' }}
+        </button>
+      </form>
+
+      <form v-else class="login__form" @submit.prevent="handleSignup">
+        <label>아이디</label>
+        <input
+          v-model="signupForm.userId"
+          class="input"
+          type="text"
+          autocomplete="nickname"
+          placeholder="예: jinsunlab"
+        />
+        <label>이메일</label>
+        <input
+          v-model="signupForm.email"
+          class="input"
+          type="email"
+          autocomplete="email"
+          placeholder="you@example.com"
+        />
+        <label>비밀번호</label>
+        <input
+          v-model="signupForm.password"
+          class="input"
+          type="password"
+          autocomplete="new-password"
+          placeholder="최소 6자 이상"
+        />
+        <label>비밀번호 확인</label>
+        <input
+          v-model="signupForm.confirmPassword"
+          class="input"
+          type="password"
+          autocomplete="new-password"
+          placeholder="비밀번호를 다시 입력하세요"
+        />
+        <button class="btn btn-primary" type="submit" :disabled="authStore.isLoading">
+          {{ authStore.isLoading ? '회원가입 중...' : '회원가입' }}
+        </button>
+      </form>
+
       <p class="login__note">
-        로그인하면 Lab Tool 계정 정보와 동기화되어 그룹·프로젝트·메시지를 그대로 사용할 수 있습니다.
+        계정을 등록하면 Lab Tool 데이터와 동기화되어 그룹·프로젝트·메시지를 그대로 사용할 수 있습니다.
       </p>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
+import { reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+
 import { useAuthStore } from '../stores/auth'
 
 const authStore = useAuthStore()
+const router = useRouter()
+
+const tabs = [
+  { value: 'login', label: '로그인' },
+  { value: 'signup', label: '회원가입' }
+] as const
+
+const activeTab = ref<(typeof tabs)[number]['value']>('login')
+const localError = ref<string | null>(null)
+const loginForm = reactive({
+  email: '',
+  password: ''
+})
+const signupForm = reactive({
+  userId: '',
+  email: '',
+  password: '',
+  confirmPassword: ''
+})
 
 const highlights = [
   {
@@ -61,6 +158,61 @@ const highlights = [
     icon: '03'
   }
 ]
+
+watch(
+  () => authStore.user,
+  (currentUser) => {
+    if (currentUser) {
+      router.push('/app/dashboard')
+    }
+  }
+)
+
+function switchTab(tab: (typeof tabs)[number]['value']) {
+  if (activeTab.value === tab) return
+  activeTab.value = tab
+  localError.value = null
+  authStore.clearError()
+}
+
+async function handleLogin() {
+  if (!loginForm.email || !loginForm.password) {
+    localError.value = '이메일과 비밀번호를 모두 입력해주세요.'
+    return
+  }
+  localError.value = null
+  authStore.clearError()
+  await authStore.signInWithEmail({
+    email: loginForm.email,
+    password: loginForm.password
+  })
+}
+
+async function handleSignup() {
+  if (!signupForm.email || !signupForm.password) {
+    localError.value = '이메일과 비밀번호를 입력해주세요.'
+    return
+  }
+  if (!signupForm.userId.trim()) {
+    localError.value = '아이디를 입력해주세요.'
+    return
+  }
+  if (signupForm.password.length < 6) {
+    localError.value = '비밀번호는 최소 6자 이상이어야 합니다.'
+    return
+  }
+  if (signupForm.password !== signupForm.confirmPassword) {
+    localError.value = '비밀번호가 일치하지 않습니다.'
+    return
+  }
+  localError.value = null
+  authStore.clearError()
+  await authStore.registerWithEmail({
+    email: signupForm.email,
+    password: signupForm.password,
+    userId: signupForm.userId.trim()
+  })
+}
 </script>
 
 <style scoped>
@@ -140,6 +292,32 @@ const highlights = [
   gap: 18px;
 }
 
+.login__tabs {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--app-border);
+  background: rgba(255, 255, 255, 0.02);
+  width: fit-content;
+  gap: 4px;
+}
+
+.login__tab {
+  border: none;
+  background: transparent;
+  color: var(--app-text-muted);
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.login__tab.active {
+  background: var(--app-primary-muted);
+  color: var(--app-text);
+}
+
 .login__card-header h2 {
   margin: 8px 0;
   font-weight: 600;
@@ -155,6 +333,12 @@ const highlights = [
   border: 1px solid rgba(255, 255, 255, 0.2);
   margin-bottom: 4px;
   background: rgba(255, 255, 255, 0.04);
+}
+
+.login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .login__note {

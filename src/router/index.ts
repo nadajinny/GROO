@@ -6,7 +6,11 @@ import { useAuthStore } from '../stores/auth'
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', redirect: '/login' },
+    {
+      path: '/',
+      name: 'home',
+      component: () => import('../views/HomeView.vue')
+    },
     {
       path: '/login',
       name: 'login',
@@ -16,6 +20,10 @@ const router = createRouter({
       path: '/app',
       component: () => import('../layouts/AppLayout.vue'),
       children: [
+        {
+          path: '',
+          redirect: '/app/dashboard'
+        },
         {
           path: 'dashboard',
           name: 'dashboard',
@@ -54,7 +62,7 @@ const router = createRouter({
         }
       ]
     },
-    { path: '/:pathMatch(.*)*', redirect: '/login' }
+    { path: '/:pathMatch(.*)*', redirect: '/' }
   ]
 })
 
@@ -65,11 +73,13 @@ router.beforeEach(async (to, _from, next) => {
   }
 
   const isLoggedIn = Boolean(authStore.user)
-  if (!isLoggedIn && to.path !== '/login') {
-    next({ path: '/login', query: { redirect: to.fullPath } })
+  const publicPaths = ['/', '/login']
+
+  if (!isLoggedIn && !publicPaths.includes(to.path)) {
+    next({ path: '/', query: { redirect: to.fullPath } })
     return
   }
-  if (isLoggedIn && to.path === '/login') {
+  if (isLoggedIn && publicPaths.includes(to.path)) {
     next('/app/dashboard')
     return
   }

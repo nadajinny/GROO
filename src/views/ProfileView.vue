@@ -39,6 +39,36 @@
 
       <div v-if="errorMessage" class="error-banner">{{ errorMessage }}</div>
       <div v-if="successMessage" class="success-banner">{{ successMessage }}</div>
+
+      <div class="divider" role="presentation"></div>
+      <div class="theme-section">
+        <div>
+          <h4>테마 설정</h4>
+          <p class="text-muted">다크/라이트 모드를 선택하면 앱 전체에 즉시 반영됩니다.</p>
+        </div>
+        <div class="theme-options">
+          <label
+            v-for="option in themeOptions"
+            :key="option.value"
+            :class="['theme-option', { active: selectedTheme === option.value }]"
+          >
+            <input
+              type="radio"
+              :value="option.value"
+              v-model="selectedTheme"
+              name="theme"
+            />
+            <div class="theme-preview" :data-mode="option.value">
+              <span class="theme-preview__sky"></span>
+              <span class="theme-preview__card"></span>
+            </div>
+            <div>
+              <strong>{{ option.label }}</strong>
+              <p>{{ option.description }}</p>
+            </div>
+          </label>
+        </div>
+      </div>
     </section>
   </div>
 </template>
@@ -49,12 +79,26 @@ import { computed, ref, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import * as userProfileService from '../services/userProfileService'
 import * as userDirectory from '../services/userDirectory'
+import { useThemeStore, type ThemeMode } from '../stores/theme'
 
 const authStore = useAuthStore()
+const themeStore = useThemeStore()
 const nickname = ref('')
 const isSaving = ref(false)
 const errorMessage = ref<string | null>(null)
 const successMessage = ref<string | null>(null)
+const themeOptions = [
+  {
+    value: 'dark',
+    label: '다크 모드',
+    description: '집중도 높은 네온 글래스 UI'
+  },
+  {
+    value: 'light',
+    label: '라이트 모드',
+    description: '밝고 명확한 화이트 UI'
+  }
+] as const
 
 watch(
   () => authStore.profile,
@@ -74,6 +118,11 @@ const initials = computed(() => {
     .join('')
     .slice(0, 2)
     .toUpperCase()
+})
+
+const selectedTheme = computed({
+  get: () => themeStore.currentTheme,
+  set: (value: ThemeMode) => themeStore.setTheme(value)
 })
 
 async function saveNickname() {
@@ -151,5 +200,96 @@ async function saveNickname() {
   padding: 12px;
   background: rgba(74, 222, 128, 0.15);
   border: 1px solid rgba(74, 222, 128, 0.4);
+}
+
+.divider {
+  margin: 32px 0;
+  height: 1px;
+  background: var(--app-border);
+}
+
+.theme-section h4 {
+  margin: 0 0 4px;
+}
+
+.theme-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.theme-option {
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  cursor: pointer;
+  transition: border 0.2s ease, background 0.2s ease;
+}
+
+.theme-option.active {
+  border-color: var(--app-border-light);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.theme-option strong {
+  display: block;
+}
+
+.theme-option p {
+  margin: 2px 0 0;
+  color: var(--app-text-muted);
+  font-size: 13px;
+}
+
+.theme-option input {
+  display: none;
+}
+
+.theme-preview {
+  width: 80px;
+  height: 54px;
+  border-radius: 12px;
+  border: 1px solid var(--app-border);
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-preview__sky {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.2), transparent);
+}
+
+.theme-preview__card {
+  position: absolute;
+  width: 60%;
+  height: 40%;
+  left: 20%;
+  bottom: 16%;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.theme-preview[data-mode='light'] {
+  background: linear-gradient(160deg, #e3e7ff, #fff);
+}
+
+.theme-preview[data-mode='light'] .theme-preview__card {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(34, 42, 115, 0.2);
+}
+
+.theme-preview[data-mode='dark'] {
+  background: linear-gradient(160deg, #050415, #1b1c3a);
+}
+
+.theme-preview[data-mode='dark'] .theme-preview__card {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.35);
 }
 </style>

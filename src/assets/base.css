@@ -1,5 +1,18 @@
 :root {
+  --app-radius: 20px;
+  --app-card-padding: 26px;
+  --app-max-width: 1240px;
+  --app-shadow-lg: 0 25px 60px rgba(4, 1, 23, 0.55);
+  --app-shadow-soft: 0 6px 30px rgba(6, 8, 30, 0.4);
+}
+
+:root:not([data-theme]),
+:root[data-theme='dark'] {
   --app-bg: #030415;
+  --app-page-gradient:
+    radial-gradient(circle at 12% -10%, rgba(118, 77, 255, 0.9), transparent 55%),
+    radial-gradient(circle at 90% 0%, rgba(16, 212, 255, 0.35), transparent 40%),
+    linear-gradient(160deg, #050415 0%, #040112 65%, #03010e 100%);
   --app-surface: rgba(13, 11, 25, 0.85);
   --app-surface-alt: rgba(24, 22, 38, 0.85);
   --app-border: rgba(255, 255, 255, 0.08);
@@ -12,12 +25,42 @@
   --app-danger: #ff8da1;
   --app-success: #5ef0b5;
   --app-warning: #ffe08c;
-  --app-radius: 20px;
-  --app-card-padding: 26px;
-  --app-max-width: 1240px;
+  --app-header-bg: rgba(5, 6, 25, 0.82);
+  --app-header-border: rgba(255, 255, 255, 0.06);
+  --app-nav-bg: rgba(8, 9, 32, 0.7);
+  --app-orb-1: #6a51ff;
+  --app-orb-2: #00c2ff;
   --app-shadow-lg: 0 25px 60px rgba(4, 1, 23, 0.55);
   --app-shadow-soft: 0 6px 30px rgba(6, 8, 30, 0.4);
   color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --app-bg: #f6f7fb;
+  --app-page-gradient:
+    radial-gradient(circle at 20% -10%, rgba(220, 228, 255, 0.9), transparent 50%),
+    radial-gradient(circle at 90% 0%, rgba(255, 223, 186, 0.45), transparent 45%),
+    linear-gradient(180deg, #f8f9ff 0%, #edf0ff 50%, #e7ecff 100%);
+  --app-surface: rgba(255, 255, 255, 0.95);
+  --app-surface-alt: rgba(248, 249, 255, 0.96);
+  --app-border: rgba(18, 25, 60, 0.1);
+  --app-border-light: rgba(18, 25, 60, 0.2);
+  --app-primary: #4f56ff;
+  --app-primary-strong: #3942ff;
+  --app-primary-muted: rgba(79, 86, 255, 0.12);
+  --app-text: #15141f;
+  --app-text-muted: rgba(21, 20, 31, 0.65);
+  --app-danger: #ff5a6b;
+  --app-success: #14b981;
+  --app-warning: #d97706;
+  --app-header-bg: rgba(255, 255, 255, 0.9);
+  --app-header-border: rgba(15, 25, 55, 0.1);
+  --app-nav-bg: rgba(255, 255, 255, 0.78);
+  --app-orb-1: #d7d9ff;
+  --app-orb-2: #ffe4b5;
+  --app-shadow-lg: 0 20px 60px rgba(15, 25, 80, 0.15);
+  --app-shadow-soft: 0 8px 30px rgba(15, 25, 80, 0.12);
+  color-scheme: light;
 }
 
 *,
@@ -43,10 +86,7 @@ body {
     'Droid Sans',
     'Helvetica Neue',
     sans-serif;
-  background:
-    radial-gradient(circle at 12% -10%, rgba(118, 77, 255, 0.9), transparent 55%),
-    radial-gradient(circle at 90% 0%, rgba(16, 212, 255, 0.35), transparent 40%),
-    linear-gradient(160deg, #050415 0%, #040112 65%, #03010e 100%);
+  background: var(--app-page-gradient, var(--app-bg));
   color: var(--app-text);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -68,13 +108,13 @@ body::after {
 }
 
 body::before {
-  background: #6a51ff;
+  background: var(--app-orb-1);
   top: -220px;
   right: -120px;
 }
 
 body::after {
-  background: #00c2ff;
+  background: var(--app-orb-2);
   bottom: -240px;
   left: -160px;
 }
