@@ -54,6 +54,22 @@ service cloud.firestore {
         && isGroupCreator(data.groupId);
     }
 
+    function isValidAccountData(data, accountId) {
+      return data.email is string
+        && data.passwordHash is string
+        && data.userId is string
+        && accountId is string;
+    }
+
+    /* =====================
+       accounts
+       ===================== */
+    match /accounts/{accountId} {
+      allow read: if true;
+      allow create: if isValidAccountData(request.resource.data, accountId);
+      allow update, delete: if false;
+    }
+
     /* =====================
        groupMembers
        ===================== */
@@ -127,8 +143,8 @@ service cloud.firestore {
        userProfiles
        ===================== */
     match /userProfiles/{uid} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn() && request.auth.uid == uid;
+      allow read: if true;
+      allow write: if request.resource.data.uid == uid;
     }
   }
 }
