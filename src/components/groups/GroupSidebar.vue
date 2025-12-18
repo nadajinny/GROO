@@ -77,8 +77,9 @@ const selectedGroupLabel = computed(
 
 function groupMeta(groupId: string) {
   const role = groupStore.roleForGroup(groupId)
-  if (role === 'owner') return '역할: Owner'
-  if (role === 'member') return '역할: Member'
+  if (role === 'OWNER') return '역할: Owner'
+  if (role === 'ADMIN') return '역할: Admin'
+  if (role === 'MEMBER') return '역할: Member'
   return '역할 확인 중'
 }
 </script>

@@ -84,10 +84,10 @@
 
     <AppDialog v-model="memberDialogVisible" :title="memberDialogTitle">
       <input
-        v-model="memberHandle"
+        v-model="memberEmail"
         class="input"
-        type="text"
-        placeholder="예: username#12345"
+        type="email"
+        placeholder="예: user@example.com"
       />
       <p v-if="memberError" class="text-muted">{{ memberError }}</p>
       <template #footer>
@@ -105,7 +105,6 @@ import { useRouter } from 'vue-router'
 import CurrentWorkspaceBanner from '../components/groups/CurrentWorkspaceBanner.vue'
 import AppDialog from '../components/common/AppDialog.vue'
 import { useGroupStore } from '../stores/group'
-import * as userDirectory from '../services/userDirectory'
 import type { Group } from '../types'
 
 const groupStore = useGroupStore()
@@ -122,7 +121,7 @@ const memberDialogVisible = computed({
     }
   }
 })
-const memberHandle = ref('')
+const memberEmail = ref('')
 const memberError = ref<string | null>(null)
 const memberDialogTitle = computed(() =>
   memberDialogGroup.value ? `멤버 추가 · ${memberDialogGroup.value.name}` : '멤버 추가'
@@ -156,26 +155,24 @@ function goToGroupDetail(groupId: string) {
 
 function openAddMemberDialog(group: Group) {
   memberDialogGroup.value = group
-  memberHandle.value = ''
+  memberEmail.value = ''
   memberError.value = null
 }
 
 function closeMemberDialog() {
   memberDialogGroup.value = null
-  memberHandle.value = ''
+  memberEmail.value = ''
   memberError.value = null
 }
 
 async function submitAddMember() {
   if (!memberDialogGroup.value) return
-  const profile = await userDirectory.fetchByHandle(memberHandle.value)
-  if (!profile) {
-    memberError.value = '해당 핸들을 가진 사용자를 찾을 수 없습니다.'
+  if (!memberEmail.value.trim()) {
+    memberError.value = '초대할 사용자의 이메일을 입력하세요.'
     return
   }
-  const success = await groupStore.addMemberToGroup({
-    group: memberDialogGroup.value,
-    memberUserId: profile.uid
+  const success = await groupStore.addMemberToGroup(memberDialogGroup.value.id, {
+    email: memberEmail.value
   })
   if (success) {
     closeMemberDialog()
