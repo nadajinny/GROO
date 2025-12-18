@@ -18,7 +18,12 @@ public enum ErrorCode {
     GROUP_MEMBER_ALREADY_EXISTS(HttpStatus.CONFLICT, "GROUP_MEMBER_ALREADY_EXISTS", "이미 그룹에 속한 사용자입니다."),
     GROUP_MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "GROUP_MEMBER_NOT_FOUND", "그룹 멤버를 찾을 수 없습니다."),
     INVITATION_INVALID(HttpStatus.BAD_REQUEST, "INVITATION_INVALID", "유효하지 않은 초대 코드입니다."),
-    GROUP_ARCHIVED(HttpStatus.BAD_REQUEST, "GROUP_ARCHIVED", "이미 비활성화된 그룹입니다.");
+    GROUP_ARCHIVED(HttpStatus.BAD_REQUEST, "GROUP_ARCHIVED", "이미 비활성화된 그룹입니다."),
+    PROJECT_NOT_FOUND(HttpStatus.NOT_FOUND, "PROJECT_NOT_FOUND", "프로젝트를 찾을 수 없습니다."),
+    PROJECT_ACCESS_DENIED(HttpStatus.FORBIDDEN, "PROJECT_ACCESS_DENIED", "프로젝트에 접근할 권한이 없습니다."),
+    TASK_NOT_FOUND(HttpStatus.NOT_FOUND, "TASK_NOT_FOUND", "작업을 찾을 수 없습니다."),
+    SUBTASK_NOT_FOUND(HttpStatus.NOT_FOUND, "SUBTASK_NOT_FOUND", "하위 작업을 찾을 수 없습니다."),
+    TASK_UPDATE_INVALID(HttpStatus.BAD_REQUEST, "TASK_UPDATE_INVALID", "변경할 작업 정보가 올바르지 않습니다.");
 
     private final HttpStatus status;
     private final String code;
