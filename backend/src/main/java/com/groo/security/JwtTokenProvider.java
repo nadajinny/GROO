@@ -3,9 +3,12 @@ package com.groo.security;
 import com.groo.config.JwtProperties;
 import com.groo.domain.user.User;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
@@ -69,6 +72,21 @@ public class JwtTokenProvider {
 
     public Claims getClaims(String token) {
         return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
+    }
+
+    public Duration getRemainingValidity(String token) {
+        try {
+            Instant expiration = getClaims(token).getExpiration().toInstant();
+            Instant now = Instant.now();
+            if (expiration.isBefore(now)) {
+                return Duration.ZERO;
+            }
+            return Duration.between(now, expiration);
+        } catch (ExpiredJwtException ex) {
+            return Duration.ZERO;
+        } catch (JwtException ex) {
+            return Duration.ZERO;
+        }
     }
 
     public Authentication getAuthentication(String token) {

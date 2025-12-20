@@ -33,6 +33,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final GoogleTokenVerifier googleTokenVerifier;
     private final FirebaseTokenVerifier firebaseTokenVerifier;
+    private final TokenBlacklistService tokenBlacklistService;
 
     public AuthService(
             UserRepository userRepository,
@@ -40,13 +41,15 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             JwtTokenProvider jwtTokenProvider,
             GoogleTokenVerifier googleTokenVerifier,
-            FirebaseTokenVerifier firebaseTokenVerifier) {
+            FirebaseTokenVerifier firebaseTokenVerifier,
+            TokenBlacklistService tokenBlacklistService) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
         this.googleTokenVerifier = googleTokenVerifier;
         this.firebaseTokenVerifier = firebaseTokenVerifier;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     public AuthResponse register(RegisterRequest request) {
@@ -107,10 +110,13 @@ public class AuthService {
         return issueTokens(user);
     }
 
-    public void logout(RefreshTokenRequest request) {
+    public void logout(RefreshTokenRequest request, String accessToken) {
         RefreshToken refreshToken = refreshTokenRepository.findByToken(request.refreshToken())
                 .orElseThrow(() -> new BusinessException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
         refreshToken.revoke();
+        if (StringUtils.hasText(accessToken)) {
+            tokenBlacklistService.blacklist(accessToken, jwtTokenProvider.getRemainingValidity(accessToken));
+        }
     }
 
     private AuthResponse issueTokens(User user) {

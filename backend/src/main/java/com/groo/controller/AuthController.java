@@ -8,9 +8,12 @@ import com.groo.dto.RegisterRequest;
 import com.groo.dto.SocialLoginRequest;
 import com.groo.service.AuthService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -26,12 +29,12 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(authService.register(request), "회원가입이 완료되었습니다."));
+        return ResponseEntity.ok(ApiResponse.success(authService.register(request), "Registration completed."));
     }
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(authService.login(request), "로그인이 완료되었습니다."));
+        return ResponseEntity.ok(ApiResponse.success(authService.login(request), "Login completed."));
     }
 
     @PostMapping("/refresh")
@@ -40,9 +43,11 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<Void>> logout(@Valid @RequestBody RefreshTokenRequest request) {
-        authService.logout(request);
-        return ResponseEntity.ok(ApiResponse.success(null, "로그아웃되었습니다."));
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+            @Valid @RequestBody RefreshTokenRequest request) {
+        authService.logout(request, resolveToken(authorization));
+        return ResponseEntity.ok(ApiResponse.success(null, "Logout completed."));
     }
 
     @PostMapping("/google")
@@ -54,4 +59,12 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> firebase(@Valid @RequestBody SocialLoginRequest request) {
         return ResponseEntity.ok(ApiResponse.success(authService.loginWithFirebase(request)));
     }
+
+    private String resolveToken(String authorizationHeader) {
+        if (StringUtils.hasText(authorizationHeader) && authorizationHeader.startsWith("Bearer ")) {
+            return authorizationHeader.substring(7);
+        }
+        return null;
+    }
 }
+

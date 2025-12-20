@@ -1,0 +1,104 @@
+CREATE TABLE IF NOT EXISTS users (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(120) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    display_name VARCHAR(60) NOT NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'USER',
+    provider VARCHAR(20) NOT NULL DEFAULT 'LOCAL',
+    provider_id VARCHAR(120),
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    token VARCHAR(255) NOT NULL UNIQUE,
+    expires_at DATETIME(6) NOT NULL,
+    revoked BIT NOT NULL DEFAULT 0,
+    CONSTRAINT fk_refresh_token_user FOREIGN KEY (user_id) REFERENCES users (id)
+) ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS groups (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    owner_id BIGINT NOT NULL,
+    name VARCHAR(40) NOT NULL,
+    description VARCHAR(200),
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    invitation_code VARCHAR(32) NOT NULL UNIQUE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_groups_owner FOREIGN KEY (owner_id) REFERENCES users (id)
+) ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS group_memberships (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    group_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'MEMBER',
+    joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_group_user (group_id, user_id),
+    CONSTRAINT fk_group_memberships_group FOREIGN KEY (group_id) REFERENCES groups (id),
+    CONSTRAINT fk_group_memberships_user FOREIGN KEY (user_id) REFERENCES users (id)
+) ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS projects (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    group_id BIGINT NOT NULL,
+    created_by BIGINT NOT NULL,
+    name VARCHAR(80) NOT NULL,
+    description VARCHAR(500),
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_projects_group FOREIGN KEY (group_id) REFERENCES groups (id),
+    CONSTRAINT fk_projects_user FOREIGN KEY (created_by) REFERENCES users (id)
+) ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS tasks (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    project_id BIGINT NOT NULL,
+    created_by BIGINT NOT NULL,
+    title VARCHAR(120) NOT NULL,
+    description VARCHAR(1000),
+    assignee_id VARCHAR(120),
+    due_date DATETIME(6),
+    status VARCHAR(20) NOT NULL DEFAULT 'TODO',
+    priority VARCHAR(20) NOT NULL DEFAULT 'MEDIUM',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_tasks_project FOREIGN KEY (project_id) REFERENCES projects (id),
+    CONSTRAINT fk_tasks_user FOREIGN KEY (created_by) REFERENCES users (id),
+    INDEX idx_tasks_project (project_id),
+    INDEX idx_tasks_status (status, priority)
+) ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS task_comments (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    task_id BIGINT NOT NULL,
+    author_id BIGINT NOT NULL,
+    content VARCHAR(2000) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_task_comments_task FOREIGN KEY (task_id) REFERENCES tasks (id),
+    CONSTRAINT fk_task_comments_user FOREIGN KEY (author_id) REFERENCES users (id)
+) ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS task_subtasks (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    task_id BIGINT NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    done BIT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_task_subtasks_task FOREIGN KEY (task_id) REFERENCES tasks (id)
+) ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS task_activity (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    task_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    message VARCHAR(500) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_task_activity_task FOREIGN KEY (task_id) REFERENCES tasks (id),
+    CONSTRAINT fk_task_activity_user FOREIGN KEY (user_id) REFERENCES users (id)
+) ENGINE = InnoDB;
