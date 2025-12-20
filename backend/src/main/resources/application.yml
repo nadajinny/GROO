@@ -26,6 +26,8 @@ spring:
       password: ${REDIS_PASSWORD:}
       database: ${REDIS_DATABASE:0}
       timeout: 5s
+      repositories:
+        enabled: false
 
 server:
   port: 8080

@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     CONSTRAINT fk_refresh_token_user FOREIGN KEY (user_id) REFERENCES users (id)
 ) ENGINE = InnoDB;
 
-CREATE TABLE IF NOT EXISTS groups (
+CREATE TABLE IF NOT EXISTS workspace_groups (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     owner_id BIGINT NOT NULL,
     name VARCHAR(40) NOT NULL,
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS groups (
     invitation_code VARCHAR(32) NOT NULL UNIQUE,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_groups_owner FOREIGN KEY (owner_id) REFERENCES users (id)
+    CONSTRAINT fk_workspace_groups_owner FOREIGN KEY (owner_id) REFERENCES users (id)
 ) ENGINE = InnoDB;
 
 CREATE TABLE IF NOT EXISTS group_memberships (
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS group_memberships (
     role VARCHAR(20) NOT NULL DEFAULT 'MEMBER',
     joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uk_group_user (group_id, user_id),
-    CONSTRAINT fk_group_memberships_group FOREIGN KEY (group_id) REFERENCES groups (id),
+    CONSTRAINT fk_group_memberships_group FOREIGN KEY (group_id) REFERENCES workspace_groups (id),
     CONSTRAINT fk_group_memberships_user FOREIGN KEY (user_id) REFERENCES users (id)
 ) ENGINE = InnoDB;
 
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS projects (
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_projects_group FOREIGN KEY (group_id) REFERENCES groups (id),
+    CONSTRAINT fk_projects_group FOREIGN KEY (group_id) REFERENCES workspace_groups (id),
     CONSTRAINT fk_projects_user FOREIGN KEY (created_by) REFERENCES users (id)
 ) ENGINE = InnoDB;
 

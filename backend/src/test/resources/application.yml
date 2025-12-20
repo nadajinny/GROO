@@ -19,6 +19,8 @@ spring:
       port: 6379
       password:
       database: 15
+      repositories:
+        enabled: false
 
 app:
   security:
