@@ -16,13 +16,17 @@ import com.groo.dto.GroupDetailDto;
 import com.groo.dto.GroupMemberDto;
 import com.groo.dto.GroupSummaryDto;
 import com.groo.dto.JoinGroupRequest;
+import com.groo.dto.PageResponse;
 import com.groo.dto.UpdateGroupRequest;
 import com.groo.security.UserPrincipal;
 import jakarta.transaction.Transactional;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 @Service
 @Transactional
@@ -139,6 +143,22 @@ public class GroupService {
         return toDetailDto(group, GroupRole.MEMBER);
     }
 
+    public PageResponse<GroupSummaryDto> searchGroups(
+            String keyword, GroupStatus status, int page, int size, UserPrincipal principal) {
+        Long userId = requirePrincipal(principal);
+        String normalizedKeyword = normalizeKeyword(keyword);
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 5), 100);
+        PageRequest pageable = PageRequest.of(safePage, safeSize);
+        Page<GroupMembership> membershipPage =
+                membershipRepository.searchMemberships(userId, status, normalizedKeyword, pageable);
+        Page<GroupSummaryDto> dtoPage = membershipPage.map(member -> {
+            long memberCount = membershipRepository.countByGroupId(member.getGroup().getId());
+            return GroupSummaryDto.of(member.getGroup(), member.getRole(), memberCount);
+        });
+        return PageResponse.from(dtoPage);
+    }
+
     public String regenerateInvitation(Long groupId, UserPrincipal principal) {
         GroupMembership membership = requireMembership(groupId, requirePrincipal(principal));
         if (membership.getRole() != GroupRole.OWNER) {
@@ -187,5 +207,9 @@ public class GroupService {
     private User fetchCurrentUser(UserPrincipal principal) {
         Long id = requirePrincipal(principal);
         return userRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private String normalizeKeyword(String keyword) {
+        return StringUtils.hasText(keyword) ? keyword.trim() : null;
     }
 }

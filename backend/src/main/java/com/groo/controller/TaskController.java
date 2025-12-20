@@ -1,8 +1,11 @@
 package com.groo.controller;
 
 import com.groo.common.ApiResponse;
+import com.groo.domain.task.TaskPriority;
+import com.groo.domain.task.TaskStatus;
 import com.groo.dto.AddSubtaskRequest;
 import com.groo.dto.CreateTaskRequest;
+import com.groo.dto.PageResponse;
 import com.groo.dto.SubtaskResponse;
 import com.groo.dto.TaskActivityResponse;
 import com.groo.dto.TaskCommentRequest;
@@ -40,6 +43,20 @@ public class TaskController {
             @RequestParam Long projectId,
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(ApiResponse.success(taskService.listByProject(projectId, principal)));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<PageResponse<TaskResponse>>> search(
+            @RequestParam Long projectId,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) TaskStatus status,
+            @RequestParam(required = false) TaskPriority priority,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "dueDate,ASC") String sort,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.success(
+                taskService.searchTasks(projectId, keyword, status, priority, page, size, sort, principal)));
     }
 
     @PostMapping

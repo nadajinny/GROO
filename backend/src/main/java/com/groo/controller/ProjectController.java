@@ -1,7 +1,9 @@
 package com.groo.controller;
 
 import com.groo.common.ApiResponse;
+import com.groo.domain.project.ProjectStatus;
 import com.groo.dto.CreateProjectRequest;
+import com.groo.dto.PageResponse;
 import com.groo.dto.ProjectResponse;
 import com.groo.security.UserPrincipal;
 import com.groo.service.ProjectService;
@@ -31,6 +33,19 @@ public class ProjectController {
             @RequestParam Long groupId,
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(ApiResponse.success(projectService.listByGroup(groupId, principal)));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<PageResponse<ProjectResponse>>> search(
+            @RequestParam Long groupId,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) ProjectStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size,
+            @RequestParam(defaultValue = "createdAt,DESC") String sort,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.success(
+                projectService.searchProjects(groupId, keyword, status, page, size, sort, principal)));
     }
 
     @PostMapping

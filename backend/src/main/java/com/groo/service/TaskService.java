@@ -17,6 +17,7 @@ import com.groo.domain.user.User;
 import com.groo.domain.user.UserRepository;
 import com.groo.dto.AddSubtaskRequest;
 import com.groo.dto.CreateTaskRequest;
+import com.groo.dto.PageResponse;
 import com.groo.dto.SubtaskResponse;
 import com.groo.dto.TaskActivityResponse;
 import com.groo.dto.TaskCommentRequest;
@@ -29,6 +30,9 @@ import java.time.Instant;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 @Service
 @Transactional
@@ -65,6 +69,23 @@ public class TaskService {
         return taskRepository.findByProjectIdOrderByDueDateAsc(project.getId()).stream()
                 .map(TaskResponse::from)
                 .toList();
+    }
+
+    public PageResponse<TaskResponse> searchTasks(
+            Long projectId,
+            String keyword,
+            com.groo.domain.task.TaskStatus status,
+            com.groo.domain.task.TaskPriority priority,
+            int page,
+            int size,
+            String sort,
+            UserPrincipal principal) {
+        Long userId = requirePrincipal(principal);
+        requireProjectAccess(projectId, userId);
+        PageRequest pageable = PageRequest.of(Math.max(page, 0), resolveTaskPageSize(size), resolveTaskSort(sort));
+        String normalizedKeyword = normalizeKeyword(keyword);
+        Page<Task> taskPage = taskRepository.searchTasks(projectId, status, priority, normalizedKeyword, pageable);
+        return PageResponse.from(taskPage.map(TaskResponse::from));
     }
 
     public TaskResponse create(CreateTaskRequest request, UserPrincipal principal) {
@@ -230,5 +251,33 @@ public class TaskService {
 
     private void logActivity(Task task, User actor, String message) {
         activityRepository.save(new TaskActivity(task, actor, message));
+    }
+
+    private int resolveTaskPageSize(int size) {
+        return Math.min(Math.max(size, 5), 100);
+    }
+
+    private Sort resolveTaskSort(String sort) {
+        if (!StringUtils.hasText(sort)) {
+            return Sort.by(Sort.Direction.ASC, "dueDate").and(Sort.by(Sort.Direction.DESC, "createdAt"));
+        }
+        String[] parts = sort.split(",");
+        String field = parts[0].trim();
+        Sort.Direction direction = Sort.Direction.ASC;
+        if (parts.length > 1) {
+            direction = Sort.Direction.fromOptionalString(parts[1].trim().toUpperCase())
+                    .orElse(Sort.Direction.ASC);
+        }
+        String property = switch (field) {
+            case "priority" -> "priority";
+            case "createdAt" -> "createdAt";
+            case "status" -> "status";
+            default -> "dueDate";
+        };
+        return Sort.by(direction, property);
+    }
+
+    private String normalizeKeyword(String keyword) {
+        return StringUtils.hasText(keyword) ? keyword.trim() : null;
     }
 }

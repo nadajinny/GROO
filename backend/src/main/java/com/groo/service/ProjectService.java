@@ -10,10 +10,14 @@ import com.groo.domain.project.ProjectRepository;
 import com.groo.domain.user.User;
 import com.groo.domain.user.UserRepository;
 import com.groo.dto.CreateProjectRequest;
+import com.groo.dto.PageResponse;
 import com.groo.dto.ProjectResponse;
 import com.groo.security.UserPrincipal;
 import jakarta.transaction.Transactional;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -45,6 +49,22 @@ public class ProjectService {
                 .toList();
     }
 
+    public PageResponse<ProjectResponse> searchProjects(
+            Long groupId,
+            String keyword,
+            com.groo.domain.project.ProjectStatus status,
+            int page,
+            int size,
+            String sort,
+            UserPrincipal principal) {
+        Long userId = requirePrincipal(principal);
+        requireMembership(groupId, userId);
+        String normalizedKeyword = normalizeKeyword(keyword);
+        PageRequest pageable = PageRequest.of(Math.max(page, 0), resolveSize(size), resolveSort(sort));
+        Page<Project> projectPage = projectRepository.searchProjects(groupId, status, normalizedKeyword, pageable);
+        return PageResponse.from(projectPage.map(ProjectResponse::from));
+    }
+
     public ProjectResponse create(CreateProjectRequest request, UserPrincipal principal) {
         Long userId = requirePrincipal(principal);
         Group group = groupRepository.findById(request.groupId())
@@ -71,5 +91,31 @@ public class ProjectService {
     private void requireMembership(Long groupId, Long userId) {
         membershipRepository.findByGroupIdAndUserId(groupId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED));
+    }
+
+    private String normalizeKeyword(String keyword) {
+        return StringUtils.hasText(keyword) ? keyword.trim() : null;
+    }
+
+    private int resolveSize(int size) {
+        return Math.min(Math.max(size, 5), 50);
+    }
+
+    private Sort resolveSort(String sort) {
+        if (!StringUtils.hasText(sort)) {
+            return Sort.by(Sort.Direction.DESC, "createdAt");
+        }
+        String[] tokens = sort.split(",");
+        String field = tokens[0].trim();
+        Sort.Direction direction = Sort.Direction.DESC;
+        if (tokens.length > 1) {
+            direction = Sort.Direction.fromOptionalString(tokens[1].trim().toUpperCase())
+                    .orElse(Sort.Direction.DESC);
+        }
+        return switch (field) {
+            case "name" -> Sort.by(direction, "name");
+            case "status" -> Sort.by(direction, "status").and(Sort.by(Sort.Direction.DESC, "createdAt"));
+            default -> Sort.by(direction, "createdAt");
+        };
     }
 }

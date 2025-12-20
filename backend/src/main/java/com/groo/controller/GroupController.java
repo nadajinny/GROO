@@ -1,12 +1,14 @@
 package com.groo.controller;
 
 import com.groo.common.ApiResponse;
+import com.groo.domain.group.GroupStatus;
 import com.groo.dto.AddGroupMemberRequest;
 import com.groo.dto.CreateGroupRequest;
 import com.groo.dto.GroupDetailDto;
 import com.groo.dto.GroupMemberDto;
 import com.groo.dto.GroupSummaryDto;
 import com.groo.dto.JoinGroupRequest;
+import com.groo.dto.PageResponse;
 import com.groo.dto.UpdateGroupRequest;
 import com.groo.security.UserPrincipal;
 import com.groo.service.GroupService;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -36,6 +39,16 @@ public class GroupController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<GroupSummaryDto>>> myGroups(@AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(ApiResponse.success(groupService.myGroups(principal)));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<PageResponse<GroupSummaryDto>>> search(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) GroupStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.success(groupService.searchGroups(keyword, status, page, size, principal)));
     }
 
     @PostMapping
