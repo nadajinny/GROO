@@ -1,179 +1,218 @@
 -- Seed 20 users (IDs 1000-1019)
-WITH RECURSIVE seq AS (
-    SELECT 0 AS n
-    UNION ALL
-    SELECT n + 1 FROM seq WHERE n < 19
-)
 INSERT INTO users (id, email, password, display_name, role, provider, provider_id, status, created_at, updated_at)
-SELECT
-    1000 + n,
-    CONCAT('seed', LPAD(n + 1, 2, '0'), '@groo.local'),
-    '$2a$10$T0JfM1g4vkuOqvQ/g1S.ZuONm3aMc.Q.O1X8/5duIQWkYMU6kCe3K', -- bcrypt hash for SeedUser123!
-    CONCAT('Seed User ', n + 1),
-    CASE WHEN n % 10 = 0 THEN 'ADMIN' ELSE 'USER' END,
-    'LOCAL',
-    CONCAT('seed-', n + 1),
-    'ACTIVE',
-    DATE_SUB(NOW(), INTERVAL (n + 1) DAY),
-    DATE_SUB(NOW(), INTERVAL n DAY)
-FROM seq
+SELECT *
+FROM (
+    SELECT
+        1000 + n AS id,
+        CONCAT('seed', LPAD(n + 1, 2, '0'), '@groo.local') AS email,
+        '$2a$10$T0JfM1g4vkuOqvQ/g1S.ZuONm3aMc.Q.O1X8/5duIQWkYMU6kCe3K' AS password, -- bcrypt hash
+        CONCAT('Seed User ', n + 1) AS display_name,
+        CASE WHEN n % 10 = 0 THEN 'ADMIN' ELSE 'USER' END AS role,
+        'LOCAL' AS provider,
+        CONCAT('seed-', n + 1) AS provider_id,
+        'ACTIVE' AS status,
+        DATE_SUB(NOW(), INTERVAL (n + 1) DAY) AS created_at,
+        DATE_SUB(NOW(), INTERVAL n DAY) AS updated_at
+    FROM (
+        SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+        UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9
+        UNION ALL SELECT 10 UNION ALL SELECT 11 UNION ALL SELECT 12 UNION ALL SELECT 13 UNION ALL SELECT 14
+        UNION ALL SELECT 15 UNION ALL SELECT 16 UNION ALL SELECT 17 UNION ALL SELECT 18 UNION ALL SELECT 19
+    ) seq
+) AS new_users
 ON DUPLICATE KEY UPDATE
-    display_name = VALUES(display_name),
-    updated_at = VALUES(updated_at);
+    display_name = new_users.display_name,
+    updated_at = new_users.updated_at;
 
 -- Seed 12 workspace groups (IDs 2000-2011)
-WITH RECURSIVE seq AS (
-    SELECT 0 AS n
-    UNION ALL
-    SELECT n + 1 FROM seq WHERE n < 11
-)
 INSERT INTO workspace_groups (id, owner_id, name, description, status, invitation_code, created_at, updated_at)
-SELECT
-    2000 + n,
-    1000 + (n % 20),
-    CONCAT('Lab Workspace ', n + 1),
-    CONCAT('Auto generated workspace #', n + 1),
-    CASE WHEN n % 5 = 0 THEN 'ARCHIVED' ELSE 'ACTIVE' END,
-    CONCAT('INV', LPAD(HEX(2000 + n), 13, 'A')),
-    DATE_SUB(NOW(), INTERVAL (n + 5) DAY),
-    DATE_SUB(NOW(), INTERVAL (n + 2) DAY)
-FROM seq
+SELECT *
+FROM (
+    SELECT
+            2000 + n AS id,
+            1000 + (n % 20) AS owner_id,
+            CONCAT('Lab Workspace ', n + 1) AS name,
+            CONCAT('Auto generated workspace #', n + 1) AS description,
+            CASE WHEN n % 5 = 0 THEN 'ARCHIVED' ELSE 'ACTIVE' END AS status,
+            CONCAT('INV', LPAD(HEX(2000 + n), 13, 'A')) AS invitation_code,
+            DATE_SUB(NOW(), INTERVAL (n + 5) DAY) AS created_at,
+            DATE_SUB(NOW(), INTERVAL (n + 2) DAY) AS updated_at
+    FROM (
+        SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5
+        UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11
+    ) seq
+) AS new_groups
 ON DUPLICATE KEY UPDATE
-    description = VALUES(description),
-    updated_at = VALUES(updated_at);
+    description = new_groups.description,
+    updated_at = new_groups.updated_at;
 
--- Seed 60 group memberships (IDs 2100+)
-WITH RECURSIVE group_seq AS (
-    SELECT 0 AS g
-    UNION ALL
-    SELECT g + 1 FROM group_seq WHERE g < 11
-),
-member_seq AS (
-    SELECT 0 AS m
-    UNION ALL
-    SELECT m + 1 FROM member_seq WHERE m < 4
-)
 INSERT INTO group_memberships (id, group_id, user_id, role, joined_at)
-SELECT
-    2100 + (group_seq.g * 5 + member_seq.m),
-    2000 + group_seq.g,
-    1000 + ((group_seq.g * 5 + member_seq.m) % 20),
-    CASE
-        WHEN member_seq.m = 0 THEN 'OWNER'
-        WHEN member_seq.m = 1 THEN 'ADMIN'
-        ELSE 'MEMBER'
-    END,
-    DATE_SUB(NOW(), INTERVAL (group_seq.g + member_seq.m) DAY)
-FROM group_seq
-CROSS JOIN member_seq
-ON DUPLICATE KEY UPDATE role = VALUES(role);
+SELECT *
+FROM (
+    SELECT
+        2100 + (g * 5 + m) AS id,
+        2000 + g AS group_id,
+        1000 + ((g * 5 + m) % 20) AS user_id,
+        CASE
+            WHEN m = 0 THEN 'OWNER'
+            WHEN m = 1 THEN 'ADMIN'
+            ELSE 'MEMBER'
+        END AS role,
+        DATE_SUB(NOW(), INTERVAL (g + m) DAY) AS joined_at
+    FROM (
+        SELECT 0 AS g UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5
+        UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11
+    ) group_seq
+    CROSS JOIN (
+        SELECT 0 AS m UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+    ) member_seq
+) AS new_members
+ON DUPLICATE KEY UPDATE role = new_members.role;
 
 -- Seed 24 projects (IDs 3000-3023)
-WITH RECURSIVE seq AS (
-    SELECT 0 AS n
-    UNION ALL
-    SELECT n + 1 FROM seq WHERE n < 23
-)
 INSERT INTO projects (id, group_id, created_by, name, description, status, created_at, updated_at)
-SELECT
-    3000 + n,
-    2000 + (n % 12),
-    1000 + (n % 20),
-    CONCAT('Project ', n + 1),
-    CONCAT('Seed project description ', n + 1),
-    CASE WHEN n % 6 = 0 THEN 'ARCHIVED' ELSE 'ACTIVE' END,
-    DATE_SUB(NOW(), INTERVAL (n + 3) DAY),
-    DATE_SUB(NOW(), INTERVAL (n + 1) DAY)
-FROM seq
+SELECT *
+FROM (
+    SELECT
+        3000 + n AS id,
+        2000 + (n % 12) AS group_id,
+        1000 + (n % 20) AS created_by,
+        CONCAT('Project ', n + 1) AS name,
+        CONCAT('Seed project description ', n + 1) AS description,
+        CASE WHEN n % 6 = 0 THEN 'ARCHIVED' ELSE 'ACTIVE' END AS status,
+        DATE_SUB(NOW(), INTERVAL (n + 3) DAY) AS created_at,
+        DATE_SUB(NOW(), INTERVAL (n + 1) DAY) AS updated_at
+    FROM (
+        SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5
+        UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11
+        UNION ALL SELECT 12 UNION ALL SELECT 13 UNION ALL SELECT 14 UNION ALL SELECT 15 UNION ALL SELECT 16 UNION ALL SELECT 17
+        UNION ALL SELECT 18 UNION ALL SELECT 19 UNION ALL SELECT 20 UNION ALL SELECT 21 UNION ALL SELECT 22 UNION ALL SELECT 23
+    ) seq
+) AS new_projects
 ON DUPLICATE KEY UPDATE
-    description = VALUES(description),
-    status = VALUES(status),
-    updated_at = VALUES(updated_at);
+    description = new_projects.description,
+    status = new_projects.status,
+    updated_at = new_projects.updated_at;
 
 -- Seed 80 tasks (IDs 4000-4079)
-WITH RECURSIVE seq AS (
-    SELECT 0 AS n
-    UNION ALL
-    SELECT n + 1 FROM seq WHERE n < 79
-)
 INSERT INTO tasks (id, project_id, created_by, title, description, assignee_id, due_date, status, priority, created_at, updated_at)
-SELECT
-    4000 + n,
-    3000 + (n % 24),
-    1000 + (n % 20),
-    CONCAT('Seed Task ', n + 1),
-    CONCAT('Detailed description for seed task ', n + 1),
-    CONCAT('user-', ((n % 20) + 1)),
-    DATE_ADD(NOW(), INTERVAL (n % 15) DAY),
-    CASE
-        WHEN n % 3 = 0 THEN 'TODO'
-        WHEN n % 3 = 1 THEN 'DOING'
-        ELSE 'DONE'
-    END,
-    CASE
-        WHEN n % 4 = 0 THEN 'HIGH'
-        WHEN n % 4 = 1 THEN 'MEDIUM'
-        ELSE 'LOW'
-    END,
-    DATE_SUB(NOW(), INTERVAL (n + 2) DAY),
-    DATE_SUB(NOW(), INTERVAL n DAY)
-FROM seq
+SELECT *
+FROM (
+    SELECT
+        4000 + n AS id,
+        3000 + (n % 24) AS project_id,
+        1000 + (n % 20) AS created_by,
+        CONCAT('Seed Task ', n + 1) AS title,
+        CONCAT('Detailed description for seed task ', n + 1) AS description,
+        CONCAT('user-', ((n % 20) + 1)) AS assignee_id,
+        DATE_ADD(NOW(), INTERVAL (n % 15) DAY) AS due_date,
+        CASE
+            WHEN n % 3 = 0 THEN 'TODO'
+            WHEN n % 3 = 1 THEN 'DOING'
+            ELSE 'DONE'
+        END AS status,
+        CASE
+            WHEN n % 4 = 0 THEN 'HIGH'
+            WHEN n % 4 = 1 THEN 'MEDIUM'
+            ELSE 'LOW'
+        END AS priority,
+        DATE_SUB(NOW(), INTERVAL (n + 2) DAY) AS created_at,
+        DATE_SUB(NOW(), INTERVAL n DAY) AS updated_at
+    FROM (
+        SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5
+        UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11
+        UNION ALL SELECT 12 UNION ALL SELECT 13 UNION ALL SELECT 14 UNION ALL SELECT 15 UNION ALL SELECT 16 UNION ALL SELECT 17
+        UNION ALL SELECT 18 UNION ALL SELECT 19 UNION ALL SELECT 20 UNION ALL SELECT 21 UNION ALL SELECT 22 UNION ALL SELECT 23
+        UNION ALL SELECT 24 UNION ALL SELECT 25 UNION ALL SELECT 26 UNION ALL SELECT 27 UNION ALL SELECT 28 UNION ALL SELECT 29
+        UNION ALL SELECT 30 UNION ALL SELECT 31 UNION ALL SELECT 32 UNION ALL SELECT 33 UNION ALL SELECT 34 UNION ALL SELECT 35
+        UNION ALL SELECT 36 UNION ALL SELECT 37 UNION ALL SELECT 38 UNION ALL SELECT 39 UNION ALL SELECT 40 UNION ALL SELECT 41
+        UNION ALL SELECT 42 UNION ALL SELECT 43 UNION ALL SELECT 44 UNION ALL SELECT 45 UNION ALL SELECT 46 UNION ALL SELECT 47
+        UNION ALL SELECT 48 UNION ALL SELECT 49 UNION ALL SELECT 50 UNION ALL SELECT 51 UNION ALL SELECT 52 UNION ALL SELECT 53
+        UNION ALL SELECT 54 UNION ALL SELECT 55 UNION ALL SELECT 56 UNION ALL SELECT 57 UNION ALL SELECT 58 UNION ALL SELECT 59
+        UNION ALL SELECT 60 UNION ALL SELECT 61 UNION ALL SELECT 62 UNION ALL SELECT 63 UNION ALL SELECT 64 UNION ALL SELECT 65
+        UNION ALL SELECT 66 UNION ALL SELECT 67 UNION ALL SELECT 68 UNION ALL SELECT 69 UNION ALL SELECT 70 UNION ALL SELECT 71
+        UNION ALL SELECT 72 UNION ALL SELECT 73 UNION ALL SELECT 74 UNION ALL SELECT 75 UNION ALL SELECT 76 UNION ALL SELECT 77
+        UNION ALL SELECT 78 UNION ALL SELECT 79
+    ) seq
+) AS new_tasks
 ON DUPLICATE KEY UPDATE
-    description = VALUES(description),
-    status = VALUES(status),
-    priority = VALUES(priority),
-    updated_at = VALUES(updated_at);
+    description = new_tasks.description,
+    status = new_tasks.status,
+    priority = new_tasks.priority,
+    updated_at = new_tasks.updated_at;
 
--- Seed 80 subtasks (IDs 5000-5079)
-WITH RECURSIVE seq AS (
-    SELECT 0 AS n
-    UNION ALL
-    SELECT n + 1 FROM seq WHERE n < 79
-)
 INSERT INTO task_subtasks (id, task_id, title, done, created_at)
-SELECT
-    5000 + n,
-    4000 + (n % 80),
-    CONCAT('Subtask ', n + 1),
-    CASE WHEN n % 2 = 0 THEN 1 ELSE 0 END,
-    DATE_SUB(NOW(), INTERVAL (n % 30) DAY)
-FROM seq
+SELECT *
+FROM (
+    SELECT
+        5000 + n AS id,
+        4000 + (n % 80) AS task_id,
+        CONCAT('Subtask ', n + 1) AS title,
+        CASE WHEN n % 2 = 0 THEN 1 ELSE 0 END AS done,
+        DATE_SUB(NOW(), INTERVAL (n % 30) DAY) AS created_at
+    FROM (
+        SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5
+        UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11
+        UNION ALL SELECT 12 UNION ALL SELECT 13 UNION ALL SELECT 14 UNION ALL SELECT 15 UNION ALL SELECT 16 UNION ALL SELECT 17
+        UNION ALL SELECT 18 UNION ALL SELECT 19 UNION ALL SELECT 20 UNION ALL SELECT 21 UNION ALL SELECT 22 UNION ALL SELECT 23
+        UNION ALL SELECT 24 UNION ALL SELECT 25 UNION ALL SELECT 26 UNION ALL SELECT 27 UNION ALL SELECT 28 UNION ALL SELECT 29
+        UNION ALL SELECT 30 UNION ALL SELECT 31 UNION ALL SELECT 32 UNION ALL SELECT 33 UNION ALL SELECT 34 UNION ALL SELECT 35
+        UNION ALL SELECT 36 UNION ALL SELECT 37 UNION ALL SELECT 38 UNION ALL SELECT 39 UNION ALL SELECT 40 UNION ALL SELECT 41
+        UNION ALL SELECT 42 UNION ALL SELECT 43 UNION ALL SELECT 44 UNION ALL SELECT 45 UNION ALL SELECT 46 UNION ALL SELECT 47
+        UNION ALL SELECT 48 UNION ALL SELECT 49 UNION ALL SELECT 50 UNION ALL SELECT 51 UNION ALL SELECT 52 UNION ALL SELECT 53
+        UNION ALL SELECT 54 UNION ALL SELECT 55 UNION ALL SELECT 56 UNION ALL SELECT 57 UNION ALL SELECT 58 UNION ALL SELECT 59
+        UNION ALL SELECT 60 UNION ALL SELECT 61 UNION ALL SELECT 62 UNION ALL SELECT 63 UNION ALL SELECT 64 UNION ALL SELECT 65
+        UNION ALL SELECT 66 UNION ALL SELECT 67 UNION ALL SELECT 68 UNION ALL SELECT 69 UNION ALL SELECT 70 UNION ALL SELECT 71
+        UNION ALL SELECT 72 UNION ALL SELECT 73 UNION ALL SELECT 74 UNION ALL SELECT 75 UNION ALL SELECT 76 UNION ALL SELECT 77
+        UNION ALL SELECT 78 UNION ALL SELECT 79
+    ) seq
+) AS new_subtasks
 ON DUPLICATE KEY UPDATE
-    title = VALUES(title),
-    done = VALUES(done);
+    title = new_subtasks.title,
+    done = new_subtasks.done;
 
 -- Seed 40 comments (IDs 6000-6039)
-WITH RECURSIVE seq AS (
-    SELECT 0 AS n
-    UNION ALL
-    SELECT n + 1 FROM seq WHERE n < 39
-)
 INSERT INTO task_comments (id, task_id, author_id, content, created_at)
-SELECT
-    6000 + n,
-    4000 + (n % 80),
-    1000 + (n % 20),
-    CONCAT('Progress note #', n + 1, ' for task ', (n % 80) + 1),
-    DATE_SUB(NOW(), INTERVAL (n % 25) DAY)
-FROM seq
+SELECT *
+FROM (
+    SELECT
+        6000 + n AS id,
+        4000 + (n % 80) AS task_id,
+        1000 + (n % 20) AS author_id,
+        CONCAT('Progress note #', n + 1, ' for task ', (n % 80) + 1) AS content,
+        DATE_SUB(NOW(), INTERVAL (n % 25) DAY) AS created_at
+    FROM (
+        SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5
+        UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11
+        UNION ALL SELECT 12 UNION ALL SELECT 13 UNION ALL SELECT 14 UNION ALL SELECT 15 UNION ALL SELECT 16 UNION ALL SELECT 17
+        UNION ALL SELECT 18 UNION ALL SELECT 19 UNION ALL SELECT 20 UNION ALL SELECT 21 UNION ALL SELECT 22 UNION ALL SELECT 23
+        UNION ALL SELECT 24 UNION ALL SELECT 25 UNION ALL SELECT 26 UNION ALL SELECT 27 UNION ALL SELECT 28 UNION ALL SELECT 29
+        UNION ALL SELECT 30 UNION ALL SELECT 31 UNION ALL SELECT 32 UNION ALL SELECT 33 UNION ALL SELECT 34 UNION ALL SELECT 35
+        UNION ALL SELECT 36 UNION ALL SELECT 37 UNION ALL SELECT 38 UNION ALL SELECT 39
+    ) seq
+) AS new_comments
 ON DUPLICATE KEY UPDATE
-    content = VALUES(content),
-    created_at = VALUES(created_at);
+    content = new_comments.content,
+    created_at = new_comments.created_at;
 
 -- Seed 30 task activities (IDs 7000-7029)
-WITH RECURSIVE seq AS (
-    SELECT 0 AS n
-    UNION ALL
-    SELECT n + 1 FROM seq WHERE n < 29
-)
 INSERT INTO task_activity (id, task_id, user_id, message, created_at)
-SELECT
-    7000 + n,
-    4000 + (n % 80),
-    1000 + (n % 20),
-    CONCAT('Task updated by seed user ', (n % 20) + 1),
-    DATE_SUB(NOW(), INTERVAL (n % 18) DAY)
-FROM seq
+SELECT *
+FROM (
+    SELECT
+        7000 + n AS id,
+        4000 + (n % 80) AS task_id,
+        1000 + (n % 20) AS user_id,
+        CONCAT('Task updated by seed user ', (n % 20) + 1) AS message,
+        DATE_SUB(NOW(), INTERVAL (n % 18) DAY) AS created_at
+    FROM (
+        SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5
+        UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11
+        UNION ALL SELECT 12 UNION ALL SELECT 13 UNION ALL SELECT 14 UNION ALL SELECT 15 UNION ALL SELECT 16 UNION ALL SELECT 17
+        UNION ALL SELECT 18 UNION ALL SELECT 19 UNION ALL SELECT 20 UNION ALL SELECT 21 UNION ALL SELECT 22 UNION ALL SELECT 23
+        UNION ALL SELECT 24 UNION ALL SELECT 25 UNION ALL SELECT 26 UNION ALL SELECT 27 UNION ALL SELECT 28 UNION ALL SELECT 29
+    ) seq
+) AS new_activities
 ON DUPLICATE KEY UPDATE
-    message = VALUES(message),
-    created_at = VALUES(created_at);
+    message = new_activities.message,
+    created_at = new_activities.created_at;
