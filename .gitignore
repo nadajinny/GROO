@@ -39,3 +39,7 @@ __screenshots__/
 .env
 .env.*
 !.env.example
+
+# Backend (Gradle/Spring)
+backend/.gradle/
+backend/build/
