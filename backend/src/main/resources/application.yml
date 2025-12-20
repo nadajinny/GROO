@@ -38,6 +38,8 @@ logging:
     com.groo: DEBUG
 
 app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   security:
     jwt:
       secret: ${JWT_SECRET:change-me-change-me-change-me-change-me}
