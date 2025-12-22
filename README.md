@@ -1,172 +1,189 @@
-# GROO
+# GROO 협업 플랫폼 백엔드
 
-> 실험실 협업을 위한 올인원 웹 워크스페이스 — 그룹·프로젝트·태스크·메신저를 하나의 Vue 3 + Firebase SPA에서 관리합니다.
+실험실·소규모 연구팀이 일정·프로젝트·메시지를 통합 관리할 수 있도록 설계된 GROO 서비스의 Spring Boot 백엔드입니다. JWT 기반 인증, 소셜 로그인, MySQL/Redis, Swagger/Postman 자동 문서화, 20개 이상의 MockMvc 테스트를 포함하고 있습니다.
 
 ## 목차
-- [1. 프로젝트 소개](#1-프로젝트-소개)
-- [2. 핵심 기능](#2-핵심-기능)
-- [3. 화면 구성 및 라우트](#3-화면-구성-및-라우트)
-- [4. 기술 스택](#4-기술-스택)
-- [5. 폴더 구조](#5-폴더-구조)
-- [6. 상태 관리 & 서비스 레이어](#6-상태-관리--서비스-레이어)
-- [7. Firestore · Storage 데이터 모델](#7-firestore--storage-데이터-모델)
-- [8. Firebase & 환경 변수 설정](#8-firebase--환경-변수-설정)
-- [9. 개발 및 빌드 스크립트](#9-개발-및-빌드-스크립트)
-- [10. UI/UX 구성 요소 가이드](#10-uiux-구성-요소-가이드)
-- [11. 주의 사항 & 향후 개선 아이디어](#11-주의-사항--향후-개선-아이디어)
-
-## 1. 프로젝트 소개
-GROO는 실험실·연구실·소규모 팀이 하나의 브라우저 환경에서 그룹, 프로젝트, 태스크, 메시지를 통합적으로 관리할 수 있도록 설계된 웹 애플리케이션입니다. 대시보드 중심의 정보 집계와 프로젝트·태스크·메시지를 그룹 컨텍스트로 자연스럽게 연결하는 것이 핵심 목표입니다.
-
-- Vue 3 (Composition API) 기반 SPA
-- Pinia를 활용한 전역 상태 관리
-- Firebase Firestore / Storage 실시간 연동
-- 커스텀 이메일 인증(데모용)
-- 그룹 단위 협업에 최적화된 UI 구조
-
-## 2. 핵심 기능
-| 영역 | 설명 |
-| --- | --- |
-| 온보딩 & 인증 | 이메일 기반 회원가입/로그인. `auth.ts` 스토어가 로컬 세션(`groo-account-uid`)을 복원하며, Firestore `accounts` 컬렉션에 해시된 비밀번호를 저장합니다. |
-| 그룹 & 워크스페이스 | 그룹 생성, 현재 작업 그룹 선택, 멤버 초대 기능 제공. 사이드바 및 배너를 통해 모든 화면에서 동일한 그룹 컨텍스트 유지 |
-| 프로젝트 & 태스크 | 그룹별 프로젝트 관리, 노트/파일/태스크를 한 화면에서 편집. 태스크 상세 뷰에서 서브태스크·댓글·활동 로그 관리 |
-| 대시보드 | 마감 일정 캘린더, 나의 할 일, 프로젝트 알림을 그룹 기준으로 집계 |
-| 메시징 | 그룹 채널 + 1:1 DM 지원. 친구 추가, 실시간 메시지 스트림 제공 |
-| 프로필 & 테마 | 닉네임/핸들 수정, 다크·라이트 테마 전환 |
-
-## 3. 화면 구성 및 라우트
-로그인 전·후 접근 제어는 `src/router/index.ts`의 전역 가드에서 `authStore.waitForReady()`를 통해 처리됩니다. `/`, `/login`, `/features`는 공개 경로, `/app/*`는 인증 이후 레이아웃(`AppLayout`)을 공유합니다.
-
-| 경로 | View | 설명 |
-| --- | --- | --- |
-| `/` | `HomeView.vue` | 랜딩 페이지 |
-| `/login` | `LoginView.vue` | 이메일 로그인 / 회원가입 |
-| `/features` | `FeaturesView.vue` | 기능 소개 |
-| `/app` | `AppLayout.vue` | 인증 후 공통 레이아웃 |
-| `/app/dashboard` | `DashboardView.vue` | 일정·알림·개인 할 일 |
-| `/app/groups` | `GroupsView.vue` | 그룹 목록 / 선택 |
-| `/app/groups/:groupId` | `GroupDetailView.vue` | 그룹 메타 정보 / 멤버 관리 |
-| `/app/projects` | `ProjectsView.vue` | 프로젝트·노트·파일·태스크 |
-| `/app/tasks/:taskId` | `TaskDetailView.vue` | 태스크 상세 |
-| `/app/messages` | `MessagesView.vue` | 그룹 채널 / DM |
-| `/app/profile` | `ProfileView.vue` | 프로필 / 테마 설정 |
-
-## 4. 기술 스택
-### 프런트엔드
-- Vue 3.5 (Composition API)
-- TypeScript 5.9
-- Vite 7 (`@` alias 포함)
-- Pinia 2.2
-- Vue Router 4.4
-
-### Firebase
-- Firestore (데이터 저장)
-- Storage (파일 업로드)
-- Analytics (선택)
-
-### 기타
-- `date-fns` (날짜 처리)
-- `npm-run-all2` (빌드 파이프라인)
-- `prettier` (코드 포맷)
-- Paperlogy 폰트(동봉)
-- 권장 Node 버전: ^20.19.0 혹은 >=22.12.0
-
-## 5. 폴더 구조
-핵심 폴더는 아래와 같이 정리되어 있습니다.
-
-```
-src/
-├─ assets/            # 글로벌 스타일, 폰트
-├─ components/        # 재사용 컴포넌트
-├─ layouts/           # 인증 후 공통 레이아웃
-├─ router/            # 라우터 + 전역 가드
-├─ services/          # Firestore / Storage 접근 계층
-├─ stores/            # Pinia 스토어
-├─ views/             # 라우트별 화면
-├─ firebase.ts        # Firebase 초기화
-└─ types.ts           # 공용 타입 정의
-```
-
-## 6. 상태 관리 & 서비스 레이어
-Pinia 스토어와 서비스 계층을 통해 Firebase 코드를 캡슐화하고, 뷰 컴포넌트는 상태/이벤트만 구독합니다.
-
-### Pinia 스토어 (`src/stores`)
-| 스토어 | 역할 |
-| --- | --- |
-| `auth.ts` | 인증, 세션 복구, 사용자 프로필 동기화 |
-| `group.ts` | 그룹 및 멤버십 관리 |
-| `social.ts` | 친구, DM, 그룹 메시지 |
-| `theme.ts` | 다크/라이트 테마 |
-
-### 서비스 (`src/services`)
-- `accountService.ts`: 이메일/비밀번호 기반 계정 관리 (데모용)
-- `userProfileService.ts`: 사용자 프로필 및 핸들 관리
-- `projectService.ts`, `taskService.ts`: 프로젝트·태스크 CRUD
-- `projectNoteService.ts`, `projectFileService.ts`: 노트, 파일 업로드
-- `userDirectory.ts`: 캐시된 프로필 조회
-
-## 7. Firestore · Storage 데이터 모델
-| 리소스 | 설명 |
-| --- | --- |
-| `accounts` | 이메일 / 해시 비밀번호 (데모 인증) |
-| `userProfiles` | 사용자 공개 프로필 |
-| `groups` | 그룹 메타 정보 |
-| `groupMembers` | 그룹 멤버 및 역할 |
-| `projects` | 그룹별 프로젝트 |
-| `tasks` | 태스크 + 서브컬렉션 (subtasks/comments/activity) |
-| `friendships` | 친구 관계 |
-| `directMessages` | 1:1 메시지 |
-| `groupMessages` | 그룹 채널 메시지 |
-| Storage `projects/{projectId}/files/*` | 프로젝트 파일 업로드 |
-
-보안 규칙은 `firestore.rules`에 정의되어 있으며 그룹 멤버십과 역할 기반 접근 제어를 수행합니다.
-
-## 8. Firebase & 환경 변수 설정
-1. Firebase 콘솔에서 Firestore(네이티브), Storage, (선택) Analytics를 활성화합니다.
-2. 커스텀 인증을 사용하므로 Firebase Authentication provider 설정은 필요 없습니다.
-3. `firestore.rules`를 프로젝트에 배포합니다.
-4. `.env` 또는 `.env.local`에 Vite 환경 변수를 입력합니다.
-
-```bash
-VITE_FIREBASE_API_KEY=your-api-key
-VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-VITE_FIREBASE_DATABASE_URL=https://your-project-default-rtdb.firebaseio.com
-VITE_FIREBASE_PROJECT_ID=your-project-id
-VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
-VITE_FIREBASE_APP_ID=your-app-id
-VITE_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
-```
-
-`src/firebase.ts`가 위 변수를 읽어 초기화하며, 개발 서버(`npm run dev`) 재시작 시 값이 반영됩니다.
-
-## 9. 개발 및 빌드 스크립트
-| 명령어 | 설명 |
-| --- | --- |
-| `npm install` | 의존성 설치 |
-| `npm run dev` | Vite 개발 서버 실행 (기본 포트 5173) |
-| `npm run build` | `vue-tsc` 타입 검사 후 `vite build` |
-| `npm run preview` | `dist/` 빌드 결과 미리보기 |
-| `npm run type-check` | Vue + TS 타입 검사만 수행 |
-| `npm run format` | `src/` 이하 파일 Prettier 정렬 |
-
-## 10. UI/UX 구성 요소 가이드
-- `AppLayout.vue`: 헤더 + 그룹 사이드바 + 콘텐츠로 인증 이후 기본 프레임을 구성합니다.
-- `GroupSidebar.vue`, `CurrentWorkspaceBanner.vue`: 현재 그룹 상태를 전역에서 공유해 컨텍스트 전환을 최소화합니다.
-- `GroupMembersPanel.vue`: 역할 기반 정렬과 새로고침 버튼으로 Firestore 데이터를 즉시 동기화합니다.
-- `MessageComposer.vue` & `MessageHistory.vue`: 입력과 히스토리를 분리해 채팅 UI를 재사용합니다.
-- `AppDialog.vue`: 그룹/프로젝트/노트/친구 추가 등 공용 모달 래퍼입니다.
-- `src/assets/base.css`, `src/assets/main.css`: Glassmorphism 카드, 토큰 기반 테마를 정의하며 `themeStore`가 `documentElement.dataset.theme`을 변경해 즉시 적용합니다.
-
-## 11. 주의 사항 & 향후 개선 아이디어
-- **현재 한계**
-  - 인증은 Firestore `accounts` + 클라이언트 측 SHA-256 해시만 사용하므로 실서비스에서는 Firebase Authentication 등 안전한 인증이 필요합니다.
-  - 자동화된 테스트가 없어 핵심 흐름(회원가입 → 그룹 → 프로젝트/태스크 → 메시지 → 프로필)을 수동 QA로 검증해야 합니다.
-  - Firestore/Storage 사용 시 요금 및 보안 규칙을 반드시 점검합니다.
-- **향후 개선 아이디어**
-  - Firebase Authentication 도입, 실시간 알림(Push), 태스크/메시지 검색
-  - 오프라인 캐싱과 접근성(A11y) 개선
-  - 메시지 읽음 상태, 파일 업로드 진행률 표시
+1. [아키텍처 개요](#아키텍처-개요)
+2. [핵심 기능](#핵심-기능)
+3. [프로젝트 구조](#프로젝트-구조)
+4. [로컬 개발/실행 가이드](#로컬-개발실행-가이드)
+5. [환경 변수](#환경-변수)
+6. [API 문서 및 도구](#api-문서-및-도구)
+7. [JCloud 배포 지침](#jcloud-배포-지침)
+8. [DB 및 시드 데이터](#db-및-시드-데이터)
+9. [인증·인가 흐름](#인증인가-흐름)
+10. [엔드포인트 요약](#엔드포인트-요약)
+11. [테스트 전략](#테스트-전략)
+12. [보안·성능 고려 사항](#보안성능-고려-사항)
+13. [향후 보강 계획](#향후-보강-계획)
 
 ---
-📎 이 문서는 학습·데모·협업 도구 설계를 위한 참고 자료입니다. 기능 확장 시 Firestore 인덱스, 데이터 스키마, UI 가이드라인을 README에 계속 기록하는 것을 권장합니다.
+
+## 아키텍처 개요
+| 계층 | 기술 | 설명 |
+| --- | --- | --- |
+| API | Spring Boot 3.2, SpringDoc | `/api/**` REST + 통일된 `ApiResponse`. |
+| 인증 | Spring Security, JWT, Firebase·Google | Access/Refresh 발급 및 검증, Redis 블랙리스트. |
+| 데이터 | MySQL 8, Flyway | 사용자·그룹·프로젝트·태스크·활동 로그. |
+| 캐시/보조 | Redis | 토큰 철회 및 향후 캐싱 확장. |
+| 문서화 | Swagger UI, Postman, MockMvc | 자동 테스트/문서화 파이프라인. |
+
+세부 시퀀스와 ERD는 `docs/` 디렉터리(추가 예정)에서 관리합니다.
+
+## 핵심 기능
+- **로컬/소셜 로그인**: 이메일 등록·로그인과 Google/Firebase 소셜 로그인 지원.
+- **RBAC**: ROLE_USER, ROLE_ADMIN 기반 접근 제어, 관리자 전용 엔드포인트 제공.
+- **워크스페이스 도메인**: 그룹, 멤버 초대, 프로젝트, 태스크·서브태스크·댓글·활동 로그, 페이지네이션/검색/정렬.
+- **일관된 오류 포맷**: `ErrorCode` 열거형으로 400~500 상태 코드 매핑.
+- **레이트리밋/검증**: Bean Validation + IP 기반 슬라이딩 윈도우 제한 (`app.rate-limit.*`).
+- **자동화**: Swagger 문서, Postman 테스트 스크립트, 22건 MockMvc 시나리오, Flyway 시드 데이터.
+
+## 프로젝트 구조
+```
+backend/
+ ├─ src/main/java/com/groo/
+ │   ├─ config/        # 시큐리티, CORS, OpenAPI, RateLimit 설정
+ │   ├─ controller/    # REST 컨트롤러
+ │   ├─ domain/        # 엔티티 + 리포지토리
+ │   ├─ dto/           # 요청/응답 DTO
+ │   ├─ security/      # JWT 필터, 사용자 상세, 레이트리밋 필터
+ │   ├─ service/       # 비즈니스 로직, OAuth 검증, 토큰 블랙리스트
+ │   └─ common/        # ApiResponse, 예외 처리
+ ├─ src/main/resources/
+ │   ├─ application.yml
+ │   └─ db/migration/  # Flyway DDL/seed
+ ├─ src/test/java/com/groo/
+ │   ├─ controller/**  # MockMvc 통합 테스트
+ │   └─ support/**     # 테스트 공통 유틸
+ ├─ Dockerfile
+ └─ build.gradle
+```
+
+## 로컬 개발/실행 가이드
+### 준비물
+- JDK 17 이상
+- MySQL 8.x, Redis 7.x (로컬 또는 Docker)
+- Gradle Wrapper 사용
+
+### Gradle 로컬 실행
+```bash
+cd backend
+cp ../.env.example ../.env   # 필요 값 입력
+./gradlew flywayMigrate      # 스키마+시드 적용
+./gradlew bootRun
+```
+기본 포트는 `http://localhost:8080` 입니다.
+
+### Docker Compose
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+노출 포트: MySQL `3307`, Redis `6380`, Backend `8080` (환경 변수로 조정 가능).
+
+### 주요 명령어
+| 명령 | 설명 |
+| --- | --- |
+| `./gradlew test` | 전체 단위/통합 테스트 실행(H2). |
+| `./gradlew bootJar` | 실행 JAR 빌드. |
+| `docker compose logs -f backend` | 컨테이너 로그 확인. |
+
+## 환경 변수
+`.env.example`를 참고하여 `.env`를 작성하세요.
+
+| 키 | 기본값 | 설명 |
+| --- | --- | --- |
+| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | `jdbc:mysql://localhost:3306/groo` | MySQL 연결 정보. |
+| `REDIS_HOST`, `REDIS_PORT` | `localhost`, `6379` | Redis 연결 정보. |
+| `JWT_SECRET` | `change-me...` | 256비트 이상 비밀키 **필수**. |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | 허용 도메인(쉼표 구분). |
+| `GOOGLE_CLIENT_ID`, `FIREBASE_SERVICE_ACCOUNT_FILE` | - | 소셜 로그인 설정. |
+| `RATE_LIMIT_ENABLED`, `RATE_LIMIT_WINDOW_SECONDS`, `RATE_LIMIT_MAX_REQUESTS` | `true / 60 / 200` | 레이트리밋 필터 제어. |
+
+`.env`와 비밀 정보는 공개 저장소에 올리지 말고 별도 채널(Classroom 등)로 제출하세요.
+
+## API 문서 및 도구
+- **Swagger UI**: `http://localhost:8080/swagger-ui/index.html`  
+  - “Authorize” 버튼 클릭 → `Bearer <access-token>` 입력 후 보호 API 테스트.  
+  - 모든 엔드포인트에 400/401/403/404/422/500 응답 스키마 자동 주입.
+- **OpenAPI**: `http://localhost:8080/v3/api-docs`
+- **Postman**: `postman/groo.postman_collection.json`  
+  - 변수: `BASE_URL`, `ACCESS_TOKEN`, `REFRESH_TOKEN`.  
+  - 헬스체크, 로그인, 토큰 저장, 그룹/프로젝트/태스크 흐름을 자동 테스트하는 스크립트 포함.
+
+## JCloud 배포 지침
+1. `docker compose up -d --build` 또는 CI/CD로 이미지 빌드 후 서버에 배포.  
+2. 포트 포워딩/리버스 프록시(JCloud 규칙 참고)로 외부 접근 허용.  
+3. 제출 시 다음 자료 포함:  
+   - Base URL, Swagger URL, Health URL  
+   - `.env` 원본(비공개 제출), DB 계정/명령어, SSH 키(.ppk/.pem)  
+   - 헬스체크 200 스크린샷  
+4. `restart: unless-stopped` 적용으로 재부팅 시 자동 복구.
+
+## DB 및 시드 데이터
+Flyway `V1__init_core_tables.sql`로 스키마 생성 후 `V2__seed_data.sql`로 다음 데이터 삽입:
+- 사용자 20명 (ADMIN/USER 혼합)
+- 워크스페이스 12개 + 멤버십/초대 코드
+- 프로젝트 24개, 태스크 80개, 서브태스크 80개
+- 댓글 40개, 활동 로그 30개
+
+통계/페이지네이션/검색 검증에 활용할 수 있도록 설계되었습니다.
+
+## 인증·인가 흐름
+- `/api/auth/register`, `/api/auth/login`: 로컬 계정용.
+- `/api/auth/google`, `/api/auth/firebase`: 소셜 로그인.
+- `/api/auth/refresh`: Refresh 토큰으로 Access 재발급.
+- `/api/auth/logout`: Refresh 철회 + Access 토큰 Redis 블랙리스트 등록.
+- `/api/users/me`: 현재 사용자 프로필.
+- ROLE_USER 기본 부여, `/api/admin/**`는 ROLE_ADMIN 필요.
+- `app.rate-limit.*` 값으로 IP 기반 요청 제한 (기본 200req/min).
+
+### 시드 계정 예시
+| 역할 | 이메일 | 비밀번호 |
+| --- | --- | --- |
+| Admin | `seed01@groo.local` | `SeedUser123!` |
+| User | `seed02@groo.local` | `SeedUser123!` |
+
+## 엔드포인트 요약
+| URL | 메서드 | 설명 | 인증 |
+| --- | --- | --- | --- |
+| `/api/auth/register` | POST | 회원가입 | 공개 |
+| `/api/auth/login` | POST | 로그인/토큰 발급 | 공개 |
+| `/api/auth/refresh` | POST | 토큰 재발급 | 공개 |
+| `/api/auth/logout` | POST | 토큰 철회 | Bearer |
+| `/api/users/me` | GET | 내 정보 조회 | Bearer |
+| `/api/groups` | GET/POST | 그룹 조회/생성(페이지·검색 지원) | Bearer |
+| `/api/groups/{id}` | GET/PATCH/DELETE | 그룹 상세·수정·삭제 | Bearer, 권한 필요 |
+| `/api/groups/{id}/members` | GET/POST/DELETE | 멤버 관리/초대 | Bearer |
+| `/api/projects` | GET/POST | 프로젝트 목록·생성 | Bearer |
+| `/api/tasks` | GET/POST/PATCH | 태스크 CRUD, 서브태스크/댓글 | Bearer |
+| `/api/admin/users/{id}/roles` | PATCH | 권한 변경 | Bearer(Admin) |
+| `/api/health` | GET | 헬스 체크 | 공개 |
+
+Swagger 문서에서 나머지 30+ 엔드포인트와 쿼리 파라미터(page/size/sort/keyword 등)를 확인하세요.
+
+## 테스트 전략
+```bash
+cd backend
+./gradlew test
+```
+- 테스트 프로필(H2) 사용, `app.rate-limit.enabled=false`.
+- `IntegrationTestSupport`가 사용자/그룹/프로젝트 데이터를 자동 생성 후 정리.
+- Auth, Users, Groups, Projects/Tasks, Admin 시나리오 총 22건 이상 커버.
+
+## 보안·성능 고려 사항
+- BCrypt 패스워드 해시, 256비트 JWT 비밀키.
+- Redis 토큰 블랙리스트 및 장애 시 fallback 로깅.
+- RateLimit 필터로 DoS 완화(환경 변수 기반 튜닝).
+- CORS 허용 목록/와일드카드 지원.
+- Bean Validation + `ErrorCode` 기반 예외 포맷 통일.
+- Flyway 기반 스키마 버전 관리, Docker Compose로 MySQL/Redis 일괄 구동.
+- 향후 분산 레이트리밋(Bucket4J+Redis)와 상세 로깅/모니터링(Prometheus, ELK) 연동 예정.
+
+## 향후 보강 계획
+- `docs/` 디렉터리에 API 설계/아키텍처/ERD 문서 업로드.
+- GitHub Actions CI로 테스트·이미지 빌드 자동화.
+|- Postman(Newman) 테스트를 CI 단계에 통합.
+|- 모니터링·알림 시스템 추가 및 다중 인스턴스 레이트리밋 업그레이드.
+
+문의나 배포 지원이 필요하면 Swagger Info 섹션의 연락처 또는 담당자에게 문의하세요.
