@@ -1,6 +1,7 @@
 package com.groo.config;
 
 import com.groo.security.JwtAuthenticationFilter;
+import com.groo.security.RateLimitingFilter;
 import java.util.Arrays;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,11 +27,14 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final String corsAllowedOrigins;
+    private final RateLimitingFilter rateLimitingFilter;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
+            RateLimitingFilter rateLimitingFilter,
             @Value("${app.cors.allowed-origins:*}") String corsAllowedOrigins) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.rateLimitingFilter = rateLimitingFilter;
         this.corsAllowedOrigins = corsAllowedOrigins;
     }
 
@@ -51,7 +55,8 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(rateLimitingFilter, JwtAuthenticationFilter.class);
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()));
         return http.build();
     }

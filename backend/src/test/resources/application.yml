@@ -26,3 +26,5 @@ app:
   security:
     jwt:
       secret: test-secret-test-secret-test-secret-test-secret
+  rate-limit:
+    enabled: false

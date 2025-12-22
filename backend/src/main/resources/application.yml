@@ -45,6 +45,10 @@ app:
       secret: ${JWT_SECRET:change-me-change-me-change-me-change-me}
       access-token-expiration-minutes: 30
       refresh-token-expiration-days: 7
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}
+    max-requests: ${RATE_LIMIT_MAX_REQUESTS:200}
   oauth2:
     google:
       client-id: ${GOOGLE_CLIENT_ID:}
