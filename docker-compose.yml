@@ -59,7 +59,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "${HOST_FRONT_PORT:-4173}:80"
+      - "${HOST_FRONT_PORT:-10110}:80"
 
 volumes:
   mysql-data:
