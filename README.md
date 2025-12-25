@@ -79,7 +79,7 @@ cp ../.env.example ../.env   # 필요 값 입력
 cp .env.example .env
 docker compose up -d --build
 ```
-- 프론트엔드(Nginx): `http://localhost:${HOST_FRONT_PORT:-10110}` – 동일 도메인에서 `/api/**` 호출 시 자동으로 백엔드로 프록시됩니다.
+- 프론트엔드(Nginx): `http://localhost:${HOST_FRONT_PORT:-10133}` – 동일 도메인에서 `/api/**` 호출 시 자동으로 백엔드로 프록시됩니다.
 - 백엔드 Swagger/헬스: `http://localhost:8080/swagger-ui/index.html`, `http://localhost:8080/api/health`
 - 데이터베이스/Redis: MySQL `3307`, Redis `6380` (필요 시 환경 변수로 조정)
 
@@ -99,7 +99,7 @@ docker compose up -d --build
 | `REDIS_HOST`, `REDIS_PORT` | `localhost`, `6379` | Redis 연결 정보. |
 | `JWT_SECRET` | `change-me...` | 256비트 이상 비밀키 **필수**. |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | 허용 도메인(쉼표 구분). |
-| `HOST_FRONT_PORT` | `10110` | Docker Compose 프론트 서비스 외부 포트. |
+| `HOST_FRONT_PORT` | `10133` | Docker Compose 프론트 서비스 외부 포트. |
 | `GOOGLE_CLIENT_ID`, `FIREBASE_SERVICE_ACCOUNT_FILE` | - | 소셜 로그인 설정. |
 | `RATE_LIMIT_ENABLED`, `RATE_LIMIT_WINDOW_SECONDS`, `RATE_LIMIT_MAX_REQUESTS` | `true / 60 / 200` | 레이트리밋 필터 제어. |
 
