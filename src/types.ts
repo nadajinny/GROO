@@ -1,19 +1,26 @@
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore'
 
-export type Role = 'owner' | 'member'
+export type GroupRole = 'OWNER' | 'ADMIN' | 'MEMBER'
 
 export interface Group {
   id: string
   name: string
-  createdBy: string
+  description?: string | null
+  status: 'ACTIVE' | 'ARCHIVED'
+  memberCount: number
+  role: GroupRole
+  invitationCode?: string | null
   createdAt?: Date | null
 }
 
 export interface GroupMember {
+  id: string
   groupId: string
   userId: string
-  role: Role
-  handle?: string | null
+  email: string
+  displayName: string
+  role: GroupRole
+  joinedAt?: Date | null
 }
 
 export interface Project {
@@ -125,13 +132,13 @@ export interface FirebaseConverter<T> {
   toFirestore(model: T): DocumentData
 }
 
-export function roleToString(role: Role): string {
+export function roleToString(role: GroupRole): string {
   return role
 }
 
-export function roleFromString(value?: string | null): Role {
-  if (value === 'owner') return 'owner'
-  return 'member'
+export function roleFromString(value?: string | null): GroupRole {
+  if (value === 'OWNER' || value === 'ADMIN') return value
+  return 'MEMBER'
 }
 
 export function projectStatusFromString(value?: string | null): ProjectStatus {

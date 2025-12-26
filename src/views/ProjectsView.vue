@@ -406,14 +406,12 @@ function closeCreateProjectDialog() {
 
 async function submitCreateProject() {
   const group = groupStore.currentGroup
-  const userId = authStore.user?.uid
-  if (!group || !userId) return
+  if (!group || !authStore.user) return
   try {
     await projectService.createProject({
       groupId: group.id,
       name: projectForm.name,
-      description: projectForm.description,
-      currentUserId: userId
+      description: projectForm.description
     })
     closeCreateProjectDialog()
     await loadProjects()
@@ -434,15 +432,13 @@ function closeCreateTaskDialog() {
 }
 
 async function submitCreateTask() {
-  const userId = authStore.user?.uid
-  if (!userId || !selectedProjectId.value) return
+  if (!authStore.user || !selectedProjectId.value) return
   try {
     await taskService.createTask({
       projectId: selectedProjectId.value,
       title: taskForm.title,
       description: taskForm.description,
-      assigneeId: taskForm.assignee,
-      currentUserId: userId
+      assigneeId: taskForm.assignee
     })
     closeCreateTaskDialog()
     await loadTasks()

@@ -3,9 +3,7 @@
     <div class="members-panel__header">
       <div>
         <div class="members-panel__title">{{ group.name }} 멤버</div>
-        <div class="members-panel__meta">
-          총 {{ members?.length ?? 0 }}명
-        </div>
+        <div class="members-panel__meta">총 {{ members?.length ?? 0 }}명</div>
       </div>
       <button class="btn btn-muted" :disabled="isLoading" @click="refresh">
         새로고침
@@ -19,16 +17,22 @@
       <button class="btn btn-primary" @click="refresh">다시 시도</button>
     </div>
     <ul v-else class="list-reset member-list">
-      <li v-for="member in members" :key="member.userId" class="member-item">
-        <div class="avatar">{{ member.handle?.[0]?.toUpperCase() ?? 'U' }}</div>
+      <li v-for="member in members" :key="member.id" class="member-item">
+        <div class="avatar">
+          {{ (member.displayName?.[0] ?? member.email?.[0] ?? 'U').toUpperCase() }}
+        </div>
         <div class="member-info">
-          <div class="member-handle">{{ member.handle ?? '알 수 없음' }}</div>
+          <div class="member-handle">{{ member.displayName ?? member.email }}</div>
           <div class="member-role">
-            역할: {{ member.role === 'owner' ? 'Owner' : 'Member' }}
+            역할:
+            <template v-if="member.role === 'OWNER'">Owner</template>
+            <template v-else-if="member.role === 'ADMIN'">Admin</template>
+            <template v-else>Member</template>
             <span v-if="member.userId === currentUserId">· 나</span>
           </div>
         </div>
-        <span v-if="member.role === 'owner'" class="badge badge-warning">OWNER</span>
+        <span v-if="member.role === 'OWNER'" class="badge badge-warning">OWNER</span>
+        <span v-else-if="member.role === 'ADMIN'" class="badge badge-muted">ADMIN</span>
       </li>
     </ul>
   </div>

@@ -62,8 +62,9 @@ const group = computed(() => groupStore.groups.find((item) => item.id === groupI
 
 const roleLabel = computed(() => {
   const role = group.value ? groupStore.roleForGroup(group.value.id) : null
-  if (role === 'owner') return 'Owner'
-  if (role === 'member') return 'Member'
+  if (role === 'OWNER') return 'Owner'
+  if (role === 'ADMIN') return 'Admin'
+  if (role === 'MEMBER') return 'Member'
   return '확인 중'
 })
 

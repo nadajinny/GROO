@@ -1,27 +1,20 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch, type WatchStopHandle } from 'vue'
-import {
-  addDoc,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  onSnapshot,
-  query,
-  serverTimestamp,
-  setDoc,
-  where
-} from 'firebase/firestore'
-import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore'
+import { computed, ref, watch, type WatchStopHandle } from 'vue'
 
-import { firestore } from '../firebase'
-import type { Group, GroupMember, Role } from '../types'
-import { roleFromString, roleToString } from '../types'
+import type { Group, GroupMember } from '../types'
 import type { useAuthStore } from './auth'
-import * as userDirectory from '../services/userDirectory'
+import * as groupApi from '../services/groupApi'
+import type {
+  BackendGroupDetail,
+  BackendGroupSummary,
+  BackendGroupMember
+} from '../services/groupApi'
 
-const groupsCollection = collection(firestore, 'groups')
-const groupMembersCollection = collection(firestore, 'groupMembers')
+interface GroupDetailRecord {
+  info: Group
+  invitationCode: string
+  members: GroupMember[]
+}
 
 export const useGroupStore = defineStore('groups', () => {
   const groups = ref<Group[]>([])
@@ -30,26 +23,22 @@ export const useGroupStore = defineStore('groups', () => {
   const isFetching = ref(false)
   const isCreating = ref(false)
   const errorMessage = ref<string | null>(null)
-  const membershipRoles = ref<Record<string, Role>>({})
-  const memberOperations = ref<Set<string>>(new Set())
-  const groupMembers = ref<Record<string, GroupMember[]>>({})
   const membersFetching = ref<Set<string>>(new Set())
   const memberErrors = ref<Set<string>>(new Set())
-  const authStoreRef = ref<ReturnType<typeof useAuthStore> | null>(null)
+  const memberOperations = ref<Set<string>>(new Set())
+  const details = ref<Record<string, GroupDetailRecord>>({})
+
   let stopAuthWatch: WatchStopHandle | null = null
-  let membershipsUnsubscribe: (() => void) | null = null
 
   function init(authStore: ReturnType<typeof useAuthStore>) {
     if (stopAuthWatch) return
-    authStoreRef.value = authStore
     stopAuthWatch = watch(
       () => authStore.user?.uid ?? null,
       (uid) => {
-        cleanupMembershipListener()
-        if (!uid) {
-          resetState()
+        if (uid) {
+          fetchMyGroups()
         } else {
-          startMembershipListener(uid)
+          resetState()
         }
       },
       { immediate: true }
@@ -58,47 +47,183 @@ export const useGroupStore = defineStore('groups', () => {
 
   function resetState() {
     groups.value = []
-    membershipRoles.value = {}
     currentGroupId.value = null
     allowNullSelection.value = true
     isFetching.value = false
-    groupMembers.value = {}
-    memberErrors.value = new Set()
-    membersFetching.value = new Set()
+    isCreating.value = false
     errorMessage.value = null
+    membersFetching.value = new Set()
+    memberErrors.value = new Set()
+    memberOperations.value = new Set()
+    details.value = {}
   }
 
-  function cleanupMembershipListener() {
-    if (membershipsUnsubscribe) {
-      membershipsUnsubscribe()
-      membershipsUnsubscribe = null
+  async function fetchMyGroups() {
+    isFetching.value = true
+    errorMessage.value = null
+    try {
+      const list = await groupApi.fetchMyGroups()
+      groups.value = list.map(mapSummary)
+      reconcileCurrentGroupSelection()
+    } catch (error: any) {
+      console.error('Failed to load groups', error)
+      errorMessage.value = error?.message ?? '그룹 목록을 불러오지 못했습니다.'
+    } finally {
+      isFetching.value = false
     }
   }
 
-  function startMembershipListener(uid: string) {
-    const membershipQuery = query(groupMembersCollection, where('userId', '==', uid))
-    isFetching.value = true
-    membershipsUnsubscribe = onSnapshot(
-      membershipQuery,
-      (snapshot) => {
-        applyMembershipDocs(snapshot.docs)
-          .catch((error) => {
-            console.error('Failed to process membership snapshot', error)
-          })
-          .finally(() => {
-            isFetching.value = false
-          })
-      },
-      (error) => {
-        console.error('Failed to watch memberships', error)
-        errorMessage.value = '그룹 정보를 실시간으로 불러오지 못했습니다.'
-        isFetching.value = false
-      }
-    )
+  async function createGroup(name: string, description?: string) {
+    if (isCreating.value) return null
+    isCreating.value = true
+    errorMessage.value = null
+    try {
+      const detail = await groupApi.createGroup({ name, description })
+      const mapped = storeDetail(detail)
+      groups.value = [mapped.info, ...groups.value]
+      selectGroup(mapped.info.id)
+      return mapped.info.id
+    } catch (error: any) {
+      console.error('Failed to create group', error)
+      errorMessage.value = error?.message ?? '그룹 생성에 실패했습니다.'
+      return null
+    } finally {
+      isCreating.value = false
+    }
   }
 
-  function roleForGroup(id: string): Role | undefined {
-    return membershipRoles.value[id]
+  async function updateGroup(groupId: string, params: { name: string; description?: string }) {
+    try {
+      const detail = await groupApi.updateGroup(groupId, {
+        name: params.name,
+        description: params.description,
+        archived: false
+      })
+      const mapped = storeDetail(detail)
+      updateGroupInList(mapped.info)
+      return mapped.info
+    } catch (error: any) {
+      console.error('Failed to update group', error)
+      errorMessage.value = error?.message ?? '그룹 정보를 수정하지 못했습니다.'
+      throw error
+    }
+  }
+
+  async function joinGroupByCode(code: string) {
+    try {
+      const detail = await groupApi.joinWithCode({ invitationCode: code })
+      const mapped = storeDetail(detail)
+      const existing = groups.value.find((item) => item.id === mapped.info.id)
+      if (existing) {
+        updateGroupInList(mapped.info)
+      } else {
+        groups.value = [mapped.info, ...groups.value]
+      }
+      selectGroup(mapped.info.id)
+      return mapped.info
+    } catch (error: any) {
+      console.error('Failed to join group', error)
+      errorMessage.value = error?.message ?? '초대 코드로 그룹에 참여하지 못했습니다.'
+      throw error
+    }
+  }
+
+  async function regenerateInvitation(groupId: string) {
+    try {
+      const code = await groupApi.regenerateInvitation(groupId)
+      const detail = details.value[groupId]
+      if (detail) {
+        details.value = {
+          ...details.value,
+          [groupId]: {
+            ...detail,
+            invitationCode: code
+          }
+        }
+      }
+      return code
+    } catch (error: any) {
+      console.error('Failed to regenerate invitation code', error)
+      errorMessage.value = error?.message ?? '초대 코드를 재발급하지 못했습니다.'
+      throw error
+    }
+  }
+
+  function roleForGroup(groupId: string) {
+    return groups.value.find((group) => group.id === groupId)?.role
+  }
+
+  function canManageGroup(groupId: string) {
+    const role = roleForGroup(groupId)
+    return role === 'OWNER' || role === 'ADMIN'
+  }
+
+  function viewAllGroups() {
+    allowNullSelection.value = true
+    currentGroupId.value = null
+  }
+
+  function selectGroup(groupId: string) {
+    const exists = groups.value.some((group) => group.id === groupId)
+    if (!exists) return false
+    allowNullSelection.value = false
+    const changed = currentGroupId.value !== groupId
+    currentGroupId.value = groupId
+    if (changed) {
+      fetchMembersOfGroup(groupId, { force: true })
+    }
+    return changed
+  }
+
+  async function fetchMembersOfGroup(groupId: string, options?: { force?: boolean }) {
+    if (!groupId) return
+    if (membersFetching.value.has(groupId) && !options?.force) return
+    if (!options?.force && details.value[groupId]?.members) {
+      return
+    }
+    setSetValue(membersFetching, groupId, true)
+    setSetValue(memberErrors, groupId, false)
+    try {
+      const members = await groupApi.listMembers(groupId)
+      applyMembers(groupId, members)
+    } catch (error: any) {
+      console.error('Failed to load members', error)
+      setSetValue(memberErrors, groupId, true)
+      errorMessage.value = error?.message ?? '멤버 목록을 불러오지 못했습니다.'
+    } finally {
+      setSetValue(membersFetching, groupId, false)
+    }
+  }
+
+  async function addMemberToGroup(groupId: string, params: { email: string; role?: string }) {
+    if (!groupId) return false
+    setSetValue(memberOperations, groupId, true)
+    errorMessage.value = null
+    try {
+      await groupApi.addMember(groupId, { email: params.email, role: params.role as any })
+      await fetchMembersOfGroup(groupId, { force: true })
+      return true
+    } catch (error: any) {
+      console.error('Failed to add member', error)
+      errorMessage.value = error?.message ?? '멤버를 추가하지 못했습니다.'
+      return false
+    } finally {
+      setSetValue(memberOperations, groupId, false)
+    }
+  }
+
+  async function removeMember(groupId: string, membershipId: string) {
+    setSetValue(memberOperations, groupId, true)
+    try {
+      await groupApi.removeMember(groupId, membershipId)
+      await fetchMembersOfGroup(groupId, { force: true })
+    } catch (error: any) {
+      console.error('Failed to remove member', error)
+      errorMessage.value = error?.message ?? '멤버를 삭제하지 못했습니다.'
+      throw error
+    } finally {
+      setSetValue(memberOperations, groupId, false)
+    }
   }
 
   const currentGroup = computed(() => {
@@ -106,34 +231,20 @@ export const useGroupStore = defineStore('groups', () => {
     return groups.value.find((group) => group.id === currentGroupId.value) ?? null
   })
 
-  function canManageGroup(groupId: string): boolean {
-    const role = membershipRoles.value[groupId]
-    if (role === 'owner') return true
-    const currentUserId = authStoreRef.value?.user?.uid
-    if (!currentUserId) return false
-    const group = groups.value.find((item) => item.id === groupId)
-    return group?.createdBy === currentUserId
+  function membersForGroup(groupId: string) {
+    return details.value[groupId]?.members
   }
 
-  async function fetchMyGroups(userId?: string) {
-    const uid = userId ?? authStoreRef.value?.user?.uid
-    if (!uid) {
-      errorMessage.value = '로그인이 필요합니다.'
-      return
-    }
-    isFetching.value = true
-    errorMessage.value = null
-    try {
-      const membershipsSnap = await getDocs(
-        query(groupMembersCollection, where('userId', '==', uid))
-      )
-      await applyMembershipDocs(membershipsSnap.docs, { resetSelectionWhenEmpty: true })
-    } catch (error) {
-      console.error('Failed to fetch groups', error)
-      errorMessage.value = '그룹을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.'
-    } finally {
-      isFetching.value = false
-    }
+  function isFetchingMembers(groupId: string) {
+    return membersFetching.value.has(groupId)
+  }
+
+  function hasMemberLoadError(groupId: string) {
+    return memberErrors.value.has(groupId)
+  }
+
+  function isAddingMember(groupId: string) {
+    return memberOperations.value.has(groupId)
   }
 
   function reconcileCurrentGroupSelection() {
@@ -151,219 +262,59 @@ export const useGroupStore = defineStore('groups', () => {
       currentGroupId.value = null
       return
     }
-    const firstGroup = groups.value[0]
-    if (firstGroup) {
-      currentGroupId.value = firstGroup.id
-    }
+    currentGroupId.value = groups.value[0]?.id ?? null
   }
 
-  function selectGroup(groupId: string): boolean {
-    const exists = groups.value.some((group) => group.id === groupId)
-    if (!exists) return false
-    allowNullSelection.value = false
-    const changed = currentGroupId.value !== groupId
-    currentGroupId.value = groupId
-    if (changed) {
-      fetchMembersOfGroup(groupId, { force: true })
+  function storeDetail(detail: BackendGroupDetail) {
+    const mappedGroup = mapSummary(detail)
+    const mappedMembers = detail.members.map((member) => mapMember(detail.id, member))
+    const record: GroupDetailRecord = {
+      info: mappedGroup,
+      invitationCode: detail.invitationCode,
+      members: mappedMembers
     }
-    return changed
+    details.value = {
+      ...details.value,
+      [mappedGroup.id]: record
+    }
+    updateGroupInList(mappedGroup)
+    return record
   }
 
-  function viewAllGroups() {
-    allowNullSelection.value = true
-    currentGroupId.value = null
-  }
-
-  async function createGroup(name: string): Promise<string | null> {
-    const uid = authStoreRef.value?.user?.uid
-    if (!uid) {
-      errorMessage.value = '로그인 후 그룹을 만들 수 있습니다.'
-      return null
-    }
-    const trimmed = name.trim()
-    if (!trimmed) {
-      errorMessage.value = '그룹 이름을 입력해주세요.'
-      return null
-    }
-    isCreating.value = true
-    errorMessage.value = null
-    try {
-      const docRef = await addDoc(groupsCollection, {
-        name: trimmed,
-        createdBy: uid,
-        createdAt: serverTimestamp()
-      })
-      await setDoc(doc(groupMembersCollection, `${docRef.id}_${uid}`), {
-        groupId: docRef.id,
-        userId: uid,
-        role: roleToString('owner')
-      })
-      await fetchMyGroups(uid)
-      selectGroup(docRef.id)
-      return docRef.id
-    } catch (error) {
-      console.error('Failed to create group', error)
-      errorMessage.value = '그룹 생성에 실패했습니다. 잠시 후 다시 시도해주세요.'
-      return null
-    } finally {
-      isCreating.value = false
-    }
-  }
-
-  async function addMemberToGroup(params: {
-    group: Group
-    memberUserId: string
-    role?: Role
-  }): Promise<boolean> {
-    const currentUserId = authStoreRef.value?.user?.uid
-    if (!currentUserId) {
-      errorMessage.value = '로그인 후에만 멤버를 추가할 수 있습니다.'
-      return false
-    }
-    if (!canManageGroup(params.group.id)) {
-      errorMessage.value = '그룹 owner만 멤버를 추가할 수 있습니다.'
-      return false
-    }
-    const trimmed = params.memberUserId.trim()
-    if (!trimmed) {
-      errorMessage.value = '추가할 사용자를 찾을 수 없습니다.'
-      return false
-    }
-    if (trimmed === currentUserId) {
-      errorMessage.value = '본인은 이미 그룹 멤버입니다.'
-      return false
-    }
-    const memberDocId = `${params.group.id}_${trimmed}`
-    memberOperations.value.add(params.group.id)
-    errorMessage.value = null
-    try {
-      const existing = await getDoc(doc(groupMembersCollection, memberDocId))
-      if (existing.exists()) {
-        errorMessage.value = '이미 해당 그룹에 속한 사용자입니다.'
-        return false
-      }
-      await setDoc(doc(groupMembersCollection, memberDocId), {
-        groupId: params.group.id,
-        userId: trimmed,
-        role: roleToString(params.role ?? 'member')
-      })
-      fetchMembersOfGroup(params.group.id, { force: true })
-      return true
-    } catch (error) {
-      console.error('Failed to add member', error)
-      errorMessage.value = '멤버 추가에 실패했습니다. 잠시 후 다시 시도해주세요.'
-      return false
-    } finally {
-      memberOperations.value.delete(params.group.id)
-    }
-  }
-
-  async function fetchMembersOfGroup(groupId: string, options?: { force?: boolean }) {
-    if (!groupId) return
-    const cache = groupMembers.value[groupId]
-    if (cache && !options?.force) return
-    if (membersFetching.value.has(groupId)) return
-
-    membersFetching.value.add(groupId)
-    memberErrors.value.delete(groupId)
-    try {
-      const membersSnap = await getDocs(
-        query(groupMembersCollection, where('groupId', '==', groupId))
-      )
-      const members: GroupMember[] = []
-      const lookupPromises: Promise<void>[] = []
-      for (const docSnap of membersSnap.docs) {
-        const data = docSnap.data()
-        const member: GroupMember = {
-          groupId,
-          userId: data.userId ?? '',
-          role: roleFromString(data.role),
-          handle: data.handle ?? null
+  function applyMembers(groupId: string, members: BackendGroupMember[]) {
+    const mapped = members.map((member) => mapMember(groupId, member))
+    const detail = details.value[groupId]
+    if (detail) {
+      details.value = {
+        ...details.value,
+        [groupId]: {
+          ...detail,
+          members: mapped
         }
-        if (!member.handle && member.userId) {
-          const task = userDirectory.fetchByUid(member.userId).then((profile) => {
-            member.handle = profile?.handle ?? null
-          })
-          lookupPromises.push(task)
+      }
+    } else {
+      details.value = {
+        ...details.value,
+        [groupId]: {
+          info: groups.value.find((group) => group.id === groupId) ?? mappedSummaryPlaceholder(groupId),
+          invitationCode: '',
+          members: mapped
         }
-        members.push(member)
       }
-      if (lookupPromises.length) {
-        await Promise.allSettled(lookupPromises)
-      }
-      members.sort((a, b) => (a.role === b.role ? 0 : a.role === 'owner' ? -1 : 1))
-      groupMembers.value = { ...groupMembers.value, [groupId]: members }
-    } catch (error) {
-      console.error('Failed to fetch members', error)
-      memberErrors.value.add(groupId)
-    } finally {
-      membersFetching.value.delete(groupId)
+    }
+    const group = groups.value.find((item) => item.id === groupId)
+    if (group) {
+      group.memberCount = mapped.length
     }
   }
 
-  function membersForGroup(groupId: string): GroupMember[] | undefined {
-    return groupMembers.value[groupId]
-  }
-
-  function isFetchingMembers(groupId: string): boolean {
-    return membersFetching.value.has(groupId)
-  }
-
-  function hasMemberLoadError(groupId: string): boolean {
-    return memberErrors.value.has(groupId)
-  }
-
-  function isAddingMember(groupId: string): boolean {
-    return memberOperations.value.has(groupId)
-  }
-
-  async function applyMembershipDocs(
-    docs: QueryDocumentSnapshot<DocumentData>[],
-    options?: { resetSelectionWhenEmpty?: boolean }
-  ) {
-    const roles: Record<string, Role> = {}
-    const groupIds: string[] = []
-    docs.forEach((docSnap) => {
-      const data = docSnap.data()
-      const groupId = data.groupId as string | undefined
-      if (!groupId) return
-      groupIds.push(groupId)
-      roles[groupId] = roleFromString(data.role)
-    })
-    membershipRoles.value = roles
-
-    const uniqueGroupIds = Array.from(new Set(groupIds))
-
-    if (!uniqueGroupIds.length) {
-      groups.value = []
-      if (options?.resetSelectionWhenEmpty ?? true) {
-        currentGroupId.value = null
-        allowNullSelection.value = true
-      }
-      return
+  function updateGroupInList(next: Group) {
+    const exists = groups.value.some((group) => group.id === next.id)
+    if (exists) {
+      groups.value = groups.value.map((group) => (group.id === next.id ? next : group))
+    } else {
+      groups.value = [next, ...groups.value]
     }
-
-    const groupDocs = await Promise.all(
-      uniqueGroupIds.map((id) => getDoc(doc(groupsCollection, id)))
-    )
-    const mapped = groupDocs
-      .filter((snapshot) => snapshot.exists())
-      .map((snapshot) => {
-        const data = snapshot.data()
-        return {
-          id: snapshot.id,
-          name: data?.name ?? '이름 없음',
-          createdBy: data?.createdBy ?? '',
-          createdAt: data?.createdAt ? data.createdAt.toDate() : null
-        } as Group
-      })
-      .sort((a, b) => {
-        const aTime = a.createdAt?.getTime() ?? 0
-        const bTime = b.createdAt?.getTime() ?? 0
-        return bTime - aTime
-      })
-    groups.value = mapped
-    reconcileCurrentGroupSelection()
   }
 
   return {
@@ -375,16 +326,66 @@ export const useGroupStore = defineStore('groups', () => {
     errorMessage,
     init,
     fetchMyGroups,
+    createGroup,
+    updateGroup,
+    joinGroupByCode,
+    regenerateInvitation,
     selectGroup,
     viewAllGroups,
-    createGroup,
     addMemberToGroup,
+    removeMember,
+    fetchMembersOfGroup,
     membersForGroup,
     isFetchingMembers,
     hasMemberLoadError,
     isAddingMember,
     roleForGroup,
-    canManageGroup,
-    fetchMembersOfGroup
+    canManageGroup
   }
 })
+
+function mapSummary(dto: BackendGroupSummary): Group {
+  return {
+    id: dto.id.toString(),
+    name: dto.name,
+    description: dto.description ?? null,
+    status: dto.status,
+    memberCount: dto.memberCount,
+    role: dto.myRole,
+    createdAt: dto.createdAt ? new Date(dto.createdAt) : null
+  }
+}
+
+function mapMember(groupId: number | string, dto: BackendGroupMember): GroupMember {
+  return {
+    id: dto.membershipId.toString(),
+    groupId: groupId.toString(),
+    userId: dto.userId.toString(),
+    email: dto.email,
+    displayName: dto.displayName,
+    role: dto.role,
+    joinedAt: dto.joinedAt ? new Date(dto.joinedAt) : null
+  }
+}
+
+function mappedSummaryPlaceholder(groupId: string): Group {
+  return {
+    id: groupId,
+    name: '그룹',
+    description: null,
+    status: 'ACTIVE',
+    memberCount: 0,
+    role: 'MEMBER',
+    createdAt: null
+  }
+}
+
+function setSetValue(target: { value: Set<string> }, key: string, present: boolean) {
+  const next = new Set(target.value)
+  if (present) {
+    next.add(key)
+  } else {
+    next.delete(key)
+  }
+  target.value = next
+}
