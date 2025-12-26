@@ -90,7 +90,8 @@ docker compose up -d --build
 - 백엔드 엔드포인트:
   - `POST /api/auth/google` (Google idToken)
   - `POST /api/auth/firebase` (Firebase idToken)
-- 프런트에서 Firebase Auth 팝업으로 토큰을 획득한 뒤 백엔드로 전달하는 방식(구현된 범위 내)
+- 프런트: Google 로그인 버튼만 제공
+- Firebase 로그인: API는 열려있지만 UI에서는 숨김(필요 시 Postman으로 검증)
 
 ---
 
@@ -98,7 +99,7 @@ docker compose up -d --build
 
 | 구분 | 예시 엔드포인트 | 권한 |
 | --- | --- | --- |
-| 공개 | `/api/health` | 누구나 |
+| 공개 | `/api/health`, `/api/auth/**`, `/swagger-ui/**`, `/v3/api-docs/**` | 누구나 |
 | 인증(일반) | `/api/users/me`, `/api/groups/**`, `/api/projects/**`, `/api/tasks/**` | `ROLE_USER` 이상 |
 | 관리자 | `/api/admin/**` | `ROLE_ADMIN` |
 
@@ -140,17 +141,43 @@ docker compose up -d --build
 | URL | Method | 설명 |
 | --- | --- | --- |
 | `/api/health` | GET | 헬스체크 |
-| `/api/auth/register` | POST | 회원가입 |
-| `/api/auth/login` | POST | 로그인 |
+| `/api/auth/register` | POST | 회원가입(이메일) |
+| `/api/auth/login` | POST | 로그인(이메일) |
 | `/api/auth/refresh` | POST | 토큰 재발급 |
 | `/api/auth/logout` | POST | 로그아웃 |
-| `/api/auth/google` | POST | Google 소셜 로그인 |
-| `/api/auth/firebase` | POST | Firebase 소셜 로그인 |
+| `/api/auth/google` | POST | Google 소셜 로그인(idToken) |
+| `/api/auth/firebase` | POST | Firebase 소셜 로그인(idToken) |
 | `/api/users/me` | GET | 내 정보 |
-| `/api/groups` | GET/POST | 그룹 목록/생성(페이지네이션/검색/정렬 포함 범위 내) |
-| `/api/projects` | GET/POST | 프로젝트 목록/생성(범위 내) |
-| `/api/tasks` | GET/POST/PATCH | 태스크 CRUD(범위 내) |
-| `/api/admin/**` | * | 관리자 기능(범위 내) |
+| `/api/groups` | GET | 그룹 목록 |
+| `/api/groups/search` | GET | 그룹 검색 |
+| `/api/groups` | POST | 그룹 생성 |
+| `/api/groups/{groupId}` | GET | 그룹 상세 |
+| `/api/groups/{groupId}` | PUT | 그룹 수정 |
+| `/api/groups/{groupId}/members` | GET | 그룹 멤버 목록 |
+| `/api/groups/{groupId}/members` | POST | 그룹 멤버 추가 |
+| `/api/groups/{groupId}/members/{membershipId}` | DELETE | 그룹 멤버 제거 |
+| `/api/groups/{groupId}/invites` | POST | 초대 코드 재발급 |
+| `/api/groups/join` | POST | 초대 코드로 가입 |
+| `/api/projects?groupId={groupId}` | GET | 프로젝트 목록(그룹 기준) |
+| `/api/projects/search` | GET | 프로젝트 검색 |
+| `/api/projects` | POST | 프로젝트 생성 |
+| `/api/tasks?projectId={projectId}` | GET | 태스크 목록(프로젝트 기준) |
+| `/api/tasks/search` | GET | 태스크 검색 |
+| `/api/tasks` | POST | 태스크 생성 |
+| `/api/tasks/{taskId}` | GET | 태스크 상세 |
+| `/api/tasks/{taskId}` | PATCH | 태스크 수정 |
+| `/api/tasks/{taskId}/subtasks` | GET | 서브태스크 목록 |
+| `/api/tasks/{taskId}/subtasks` | POST | 서브태스크 생성 |
+| `/api/tasks/{taskId}/subtasks/{subtaskId}` | PATCH | 서브태스크 수정 |
+| `/api/tasks/{taskId}/subtasks/{subtaskId}` | DELETE | 서브태스크 삭제 |
+| `/api/tasks/{taskId}/comments` | GET | 댓글 목록 |
+| `/api/tasks/{taskId}/comments` | POST | 댓글 작성 |
+| `/api/tasks/{taskId}/activity` | GET | 활동 로그 조회 |
+| `/api/admin/users` | GET | 관리자: 유저 목록/검색 |
+| `/api/admin/users/{id}/roles` | PATCH | 관리자: 권한 변경 |
+| `/api/admin/users/{id}/deactivate` | POST | 관리자: 유저 비활성화 |
+| `/api/admin/stats/users` | GET | 관리자: 유저 통계 |
+| `/api/admin/stats/workload` | GET | 관리자: 워크로드 통계 |
 
 전체 목록은 Swagger UI에서 확인하세요.
 
@@ -185,4 +212,3 @@ docker compose up -d --build
 - 소셜 로그인(구글)은 토큰 검증을 위해 서버 환경 변수/리다이렉트 설정이 필요하며, 배포 환경에 맞춰 추가 검증/에러 처리 보강 예정
 - 실시간 메시지/알림 등은 별도 리소스로 확장 예정
 - CI/CD(GitHub Actions), 모니터링(Prometheus/Grafana) 연동 예정
-
