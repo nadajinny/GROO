@@ -22,9 +22,6 @@
       <div class="login__card-header">
         <p class="pill small">시작하기</p>
         <h2>GROO 계정을 만들고 로그인하세요</h2>
-        <p class="text-muted">
-          Firebase Authentication · Cloud Firestore 환경을 그대로 사용합니다.
-        </p>
       </div>
 
       <div class="login__tabs">
