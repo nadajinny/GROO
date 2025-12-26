@@ -22,9 +22,6 @@
       <div class="login__card-header">
         <p class="pill small">시작하기</p>
         <h2>GROO 계정을 만들고 로그인하세요</h2>
-        <p class="text-muted">
-          Firebase Authentication · Cloud Firestore 환경을 그대로 사용합니다.
-        </p>
       </div>
 
       <div class="login__tabs">
@@ -45,6 +42,17 @@
       </div>
       <div class="login__status" v-else-if="authStore.errorMessage">
         {{ authStore.errorMessage }}
+      </div>
+
+      <div class="login__social">
+        <button
+          class="btn btn-outline"
+          type="button"
+          :disabled="authStore.isLoading"
+          @click="handleGoogleLogin"
+        >
+          Google 로그인
+        </button>
       </div>
 
       <Transition name="auth-switch" mode="out-in">
@@ -102,7 +110,7 @@
             class="input"
             type="password"
             autocomplete="new-password"
-            placeholder="최소 6자 이상"
+            placeholder="최소 8자 이상"
           />
           <label>비밀번호 확인</label>
           <input
@@ -209,7 +217,7 @@ async function handleSignup() {
     return
   }
   if (signupForm.password.length < 6) {
-    localError.value = '비밀번호는 최소 6자 이상이어야 합니다.'
+    localError.value = '비밀번호는 최소 8자 이상이어야 합니다.'
     return
   }
   if (signupForm.password !== signupForm.confirmPassword) {
@@ -223,6 +231,12 @@ async function handleSignup() {
     password: signupForm.password,
     userId: signupForm.userId.trim()
   })
+}
+
+async function handleGoogleLogin() {
+  localError.value = null
+  authStore.clearError()
+  await authStore.signInWithGoogle()
 }
 </script>
 
@@ -350,6 +364,22 @@ async function handleSignup() {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.login__social {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.btn-outline {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--app-text);
+}
+
+.btn-outline:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .login__note {

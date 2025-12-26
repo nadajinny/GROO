@@ -4,37 +4,28 @@ import router from '../router'
 
 import type { AppUser, UserProfile } from '../types'
 import * as userDirectory from '../services/userDirectory'
-import * as accountService from '../services/accountService'
-import type { AccountRecord } from '../services/accountService'
-
-const SESSION_KEY = 'groo-account-uid'
+import { getAccessToken } from '../services/apiClient'
+import * as authApi from '../services/authApi'
+import type { BackendUser } from '../services/authApi'
+import { auth as firebaseAuth } from '../firebase'
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<AppUser | null>(null)
   const profile = ref<UserProfile | null>(null)
+  const backendUser = ref<BackendUser | null>(null)
   const isLoading = ref(false)
   const errorMessage = ref<string | null>(null)
   const initialized = ref(false)
-  let isRestoringSession = false
 
-  function init() {
-    if (initialized.value || isRestoringSession) return
-    isRestoringSession = true
-    const savedUid = getPersistedUid()
-    if (!savedUid) {
+  async function init() {
+    if (initialized.value) return
+    if (!getAccessToken()) {
       initialized.value = true
-      isRestoringSession = false
       return
     }
-    restoreSession(savedUid)
-      .catch((error) => {
-        console.error('Failed to restore session', error)
-        clearPersistedUid()
-      })
-      .finally(() => {
-        initialized.value = true
-        isRestoringSession = false
-      })
+    await restoreSession()
+    initialized.value = true
   }
 
   async function registerWithEmail(params: {
@@ -46,29 +37,16 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading.value = true
     errorMessage.value = null
     try {
-      const existing = await accountService.findByEmail(params.email)
-      if (existing) {
-        throw new Error('이미 사용 중인 이메일입니다.')
-      }
-      const uid = generateUid()
-      const passwordHash = await hashPassword(params.password)
-      const sanitizedUserId = sanitizeUserId(params.userId)
-      await accountService.createAccount({
-        uid,
+      await authApi.register({
         email: params.email,
-        passwordHash,
-        userId: sanitizedUserId
+        password: params.password,
+        displayName: sanitizeUserId(params.userId)
       })
-      await establishSessionFromAccount({
-        uid,
-        email: params.email,
-        passwordHash,
-        userId: sanitizedUserId
-      })
+      await restoreSession()
     } catch (error: any) {
       console.error('Email sign-up failed', error)
       errorMessage.value =
-        error?.message ?? '회원가입을 진행할 수 없습니다. 잠시 후 다시 시도해주세요.'
+        error?.message ?? '회원가입을 진행하지 못했습니다. 잠시 후 다시 시도해주세요.'
     } finally {
       isLoading.value = false
     }
@@ -79,19 +57,57 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading.value = true
     errorMessage.value = null
     try {
-      const account = await accountService.findByEmail(params.email)
-      if (!account) {
-        throw new Error('등록되지 않은 계정입니다.')
-      }
-      const passwordHash = await hashPassword(params.password)
-      if (account.passwordHash !== passwordHash) {
-        throw new Error('비밀번호가 올바르지 않습니다.')
-      }
-      await establishSessionFromAccount(account)
+      await authApi.login({
+        email: params.email,
+        password: params.password
+      })
+      await restoreSession()
     } catch (error: any) {
       console.error('Email sign-in failed', error)
-      errorMessage.value =
-        error?.message ?? '로그인을 진행할 수 없습니다. 잠시 후 다시 시도해주세요.'
+      errorMessage.value = error?.message ?? '로그인을 진행하지 못했습니다. 잠시 후 다시 시도해주세요.'
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function signInWithGoogle() {
+    if (isLoading.value) return
+    isLoading.value = true
+    errorMessage.value = null
+    try {
+      const provider = new GoogleAuthProvider()
+      const result = await signInWithPopup(firebaseAuth, provider)
+      const credential = GoogleAuthProvider.credentialFromResult(result)
+      const googleIdToken = (credential as any)?.idToken as string | undefined
+
+      if (!googleIdToken) {
+        throw new Error('Google 토큰을 가져오지 못했습니다.')
+      }
+
+      await authApi.loginWithGoogleIdToken(googleIdToken)
+      await restoreSession()
+    } catch (error: any) {
+      console.error('Google sign-in failed', error)
+      errorMessage.value = error?.message ?? 'Google 로그인에 실패했습니다.'
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function signInWithFirebase() {
+    if (isLoading.value) return
+    isLoading.value = true
+    errorMessage.value = null
+    try {
+      const provider = new GoogleAuthProvider()
+      const result = await signInWithPopup(firebaseAuth, provider)
+      const firebaseIdToken = await result.user.getIdToken()
+
+      await authApi.loginWithFirebaseIdToken(firebaseIdToken)
+      await restoreSession()
+    } catch (error: any) {
+      console.error('Firebase sign-in failed', error)
+      errorMessage.value = error?.message ?? 'Firebase 로그인에 실패했습니다.'
     } finally {
       isLoading.value = false
     }
@@ -102,9 +118,10 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading.value = true
     errorMessage.value = null
     try {
-      clearPersistedUid()
+      await authApi.logout()
       user.value = null
       profile.value = null
+      backendUser.value = null
       if (router.currentRoute.value.path !== '/') {
         router.push('/')
       }
@@ -140,36 +157,54 @@ export const useAuthStore = defineStore('auth', () => {
     errorMessage.value = null
   }
 
-  async function restoreSession(uid: string) {
-    const account = await accountService.findByUid(uid)
-    if (!account) throw new Error('계정을 찾을 수 없습니다.')
-    await establishSessionFromAccount(account)
+  async function restoreSession() {
+    try {
+      const me = await authApi.fetchCurrentUser()
+      applyBackendUser(me)
+    } catch (error) {
+      console.error('Failed to restore session', error)
+      await authApi.logout()
+      user.value = null
+      profile.value = null
+      backendUser.value = null
+    }
   }
 
-  async function establishSessionFromAccount(account: AccountRecord) {
-    const appUser = mapAccountToUser(account)
-    user.value = appUser
-    try {
-      const resolved = await userDirectory.ensureForUser(appUser)
-      profile.value = resolved
-      persistUid(appUser.uid)
-    } catch (error) {
-      console.error('Failed to sync profile', error)
-      throw error
-    } finally {
-      initialized.value = true
+  function applyBackendUser(me: BackendUser) {
+    backendUser.value = me
+    const uid = me.id.toString()
+    const email = me.email ?? ''
+    const fallback = email ? email.split('@')[0] : 'User'
+    const displayName = ((me.displayName ?? '').trim() || fallback) as string
+    user.value = {
+      uid,
+      displayName,
+      photoUrl: null
     }
+    const resolved: UserProfile = {
+      uid,
+      userId: displayName,
+      tag: email,
+      displayName,
+      handle: email,
+      photoUrl: null
+    }
+    profile.value = resolved
+    userDirectory.cacheProfile(resolved)
   }
 
   return {
     user,
     profile,
+    backendUser,
     isLoading,
     errorMessage,
     initialized,
     init,
     registerWithEmail,
     signInWithEmail,
+    signInWithGoogle,
+    signInWithFirebase,
     signOut: signOutFromApp,
     updateProfile,
     waitForReady,
@@ -177,49 +212,8 @@ export const useAuthStore = defineStore('auth', () => {
   }
 })
 
-function mapAccountToUser(account: AccountRecord): AppUser {
-  return {
-    uid: account.uid,
-    displayName: account.userId,
-    photoUrl: null
-  }
-}
-
-function persistUid(uid: string) {
-  if (typeof window === 'undefined') return
-  window.localStorage.setItem(SESSION_KEY, uid)
-}
-
-function getPersistedUid(): string | null {
-  if (typeof window === 'undefined') return null
-  return window.localStorage.getItem(SESSION_KEY)
-}
-
-function clearPersistedUid() {
-  if (typeof window === 'undefined') return
-  window.localStorage.removeItem(SESSION_KEY)
-}
-
-function generateUid() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID()
-  }
-  return `uid_${Math.random().toString(36).slice(2, 10)}`
-}
-
 function sanitizeUserId(userId: string) {
   const trimmed = userId.trim()
-  if (!trimmed) return 'user'
+  if (!trimmed) return 'User'
   return trimmed.replace(/\s+/g, '').slice(0, 30)
-}
-
-async function hashPassword(value: string): Promise<string> {
-  if (typeof crypto !== 'undefined' && crypto.subtle) {
-    const encoder = new TextEncoder()
-    const buffer = await crypto.subtle.digest('SHA-256', encoder.encode(value))
-    return Array.from(new Uint8Array(buffer))
-      .map((byte) => byte.toString(16).padStart(2, '0'))
-      .join('')
-  }
-  return btoa(value)
 }

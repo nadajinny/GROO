@@ -1,0 +1,10 @@
+.git
+.gitignore
+node_modules
+dist
+backend/.gradle
+backend/build
+backend/.idea
+backend/.vscode
+postman
+*.md
