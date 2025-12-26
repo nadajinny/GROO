@@ -47,6 +47,25 @@
         {{ authStore.errorMessage }}
       </div>
 
+      <div class="login__social">
+        <button
+          class="btn btn-outline"
+          type="button"
+          :disabled="authStore.isLoading"
+          @click="handleGoogleLogin"
+        >
+          Google 로그인
+        </button>
+        <button
+          class="btn btn-outline"
+          type="button"
+          :disabled="authStore.isLoading"
+          @click="handleFirebaseLogin"
+        >
+          Firebase 로그인
+        </button>
+      </div>
+
       <Transition name="auth-switch" mode="out-in">
         <form
           v-if="activeTab === 'login'"
@@ -224,6 +243,18 @@ async function handleSignup() {
     userId: signupForm.userId.trim()
   })
 }
+
+async function handleGoogleLogin() {
+  localError.value = null
+  authStore.clearError()
+  await authStore.signInWithGoogle()
+}
+
+async function handleFirebaseLogin() {
+  localError.value = null
+  authStore.clearError()
+  await authStore.signInWithFirebase()
+}
 </script>
 
 <style scoped>
@@ -350,6 +381,22 @@ async function handleSignup() {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.login__social {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.btn-outline {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--app-text);
+}
+
+.btn-outline:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .login__note {

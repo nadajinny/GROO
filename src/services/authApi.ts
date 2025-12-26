@@ -44,6 +44,26 @@ export async function login(payload: AuthPayload) {
   return tokens
 }
 
+export async function loginWithGoogleIdToken(idToken: string) {
+  const tokens = await apiRequest<AuthTokens>('/api/auth/google', {
+    method: 'POST',
+    body: { idToken },
+    skipAuth: true
+  })
+  setTokens(tokens.accessToken, tokens.refreshToken)
+  return tokens
+}
+
+export async function loginWithFirebaseIdToken(idToken: string) {
+  const tokens = await apiRequest<AuthTokens>('/api/auth/firebase', {
+    method: 'POST',
+    body: { idToken },
+    skipAuth: true
+  })
+  setTokens(tokens.accessToken, tokens.refreshToken)
+  return tokens
+}
+
 export async function logout() {
   const refreshToken = getRefreshToken()
   if (!refreshToken) {

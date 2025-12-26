@@ -7,6 +7,8 @@ import * as userDirectory from '../services/userDirectory'
 import { getAccessToken } from '../services/apiClient'
 import * as authApi from '../services/authApi'
 import type { BackendUser } from '../services/authApi'
+import { auth as firebaseAuth } from '../firebase'
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<AppUser | null>(null)
@@ -63,6 +65,49 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (error: any) {
       console.error('Email sign-in failed', error)
       errorMessage.value = error?.message ?? '로그인을 진행하지 못했습니다. 잠시 후 다시 시도해주세요.'
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function signInWithGoogle() {
+    if (isLoading.value) return
+    isLoading.value = true
+    errorMessage.value = null
+    try {
+      const provider = new GoogleAuthProvider()
+      const result = await signInWithPopup(firebaseAuth, provider)
+      const credential = GoogleAuthProvider.credentialFromResult(result)
+      const googleIdToken = (credential as any)?.idToken as string | undefined
+
+      if (!googleIdToken) {
+        throw new Error('Google 토큰을 가져오지 못했습니다.')
+      }
+
+      await authApi.loginWithGoogleIdToken(googleIdToken)
+      await restoreSession()
+    } catch (error: any) {
+      console.error('Google sign-in failed', error)
+      errorMessage.value = error?.message ?? 'Google 로그인에 실패했습니다.'
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function signInWithFirebase() {
+    if (isLoading.value) return
+    isLoading.value = true
+    errorMessage.value = null
+    try {
+      const provider = new GoogleAuthProvider()
+      const result = await signInWithPopup(firebaseAuth, provider)
+      const firebaseIdToken = await result.user.getIdToken()
+
+      await authApi.loginWithFirebaseIdToken(firebaseIdToken)
+      await restoreSession()
+    } catch (error: any) {
+      console.error('Firebase sign-in failed', error)
+      errorMessage.value = error?.message ?? 'Firebase 로그인에 실패했습니다.'
     } finally {
       isLoading.value = false
     }
@@ -158,6 +203,8 @@ export const useAuthStore = defineStore('auth', () => {
     init,
     registerWithEmail,
     signInWithEmail,
+    signInWithGoogle,
+    signInWithFirebase,
     signOut: signOutFromApp,
     updateProfile,
     waitForReady,
