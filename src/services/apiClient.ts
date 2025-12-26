@@ -56,10 +56,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     headers.set('Authorization', `Bearer ${cachedAccessToken}`)
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(buildApiUrl(path), {
     ...init,
-    headers
-      ,
+    headers,
     body: requestBody
   })
 
@@ -101,7 +100,7 @@ async function refreshAccessToken() {
   if (!refreshPromise) {
     refreshPromise = (async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        const response = await fetch(buildApiUrl('/api/auth/refresh'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -130,6 +129,22 @@ async function refreshAccessToken() {
     })()
   }
   return refreshPromise
+}
+
+function buildApiUrl(path: string) {
+  const baseUrl = String(API_BASE_URL ?? '').replace(/\/+$/, '')
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+
+  if (!baseUrl) return normalizedPath
+
+  if (
+    baseUrl.toLowerCase().endsWith('/api') &&
+    (normalizedPath === '/api' || normalizedPath.startsWith('/api/'))
+  ) {
+    return `${baseUrl}${normalizedPath.slice('/api'.length)}`
+  }
+
+  return `${baseUrl}${normalizedPath}`
 }
 
 function getStoredToken(key: string) {
