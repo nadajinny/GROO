@@ -56,14 +56,6 @@
         >
           Google 로그인
         </button>
-        <button
-          class="btn btn-outline"
-          type="button"
-          :disabled="authStore.isLoading"
-          @click="handleFirebaseLogin"
-        >
-          Firebase 로그인
-        </button>
       </div>
 
       <Transition name="auth-switch" mode="out-in">
@@ -249,12 +241,6 @@ async function handleGoogleLogin() {
   authStore.clearError()
   await authStore.signInWithGoogle()
 }
-
-async function handleFirebaseLogin() {
-  localError.value = null
-  authStore.clearError()
-  await authStore.signInWithFirebase()
-}
 </script>
 
 <style scoped>
@@ -385,7 +371,7 @@ async function handleFirebaseLogin() {
 
 .login__social {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 
