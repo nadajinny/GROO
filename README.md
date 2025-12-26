@@ -75,6 +75,8 @@ docker compose up -d --build
 - Swagger UI: `http://113.198.66.68:10133/swagger-ui/index.html`
 - Health: `http://113.198.66.68:10133/api/health`
 
+![alt text](health_ok.png)
+
 ---
 
 ## 5) 인증 플로우
