@@ -102,7 +102,7 @@
             class="input"
             type="password"
             autocomplete="new-password"
-            placeholder="최소 6자 이상"
+            placeholder="최소 8자 이상"
           />
           <label>비밀번호 확인</label>
           <input
@@ -209,7 +209,7 @@ async function handleSignup() {
     return
   }
   if (signupForm.password.length < 6) {
-    localError.value = '비밀번호는 최소 6자 이상이어야 합니다.'
+    localError.value = '비밀번호는 최소 8자 이상이어야 합니다.'
     return
   }
   if (signupForm.password !== signupForm.confirmPassword) {
